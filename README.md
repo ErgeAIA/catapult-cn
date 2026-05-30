@@ -124,13 +124,13 @@
 
 ## 下载
 
-预构建的二进制文件（Linux、macOS 通用版、Windows）可在 [Releases](../../releases) 页面下载。
+预构建的二进制文件可在 [Releases](../../releases) 页面下载。
 
-| 平台    | 格式                                  |
-| ------- | ------------------------------------- |
-| Linux   | AppImage、.deb                        |
-| macOS   | .dmg（通用版：Intel + Apple Silicon） |
-| Windows | .msi                                  |
+| 文件 | 说明 |
+|------|------|
+| `Catapult-CN_0.1.5_x64-setup.exe` | NSIS 安装包（推荐） |
+| `Catapult-CN_0.1.5_x64_en-US.msi` | MSI 安装包 |
+| `Catapult-CN-v0.1.5-portable.zip` | 便携版（解压即用） |
 
 ## 从源码构建
 
