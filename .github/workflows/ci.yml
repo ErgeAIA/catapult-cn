@@ -83,25 +83,20 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - name: Create portable ZIP
+      - name: Create portable exe
         shell: pwsh
         run: |
-          $releaseDir = "src-tauri/target/release"
-          $zipName = "Catapult-CN_${{ github.ref_name }}_x64.zip"
-          $portableDir = "Catapult-CN"
-          New-Item -ItemType Directory -Force -Path $portableDir
-          Copy-Item "$releaseDir/catapult.exe" $portableDir/
-          Copy-Item "$releaseDir/*.dll" $portableDir/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse "$releaseDir/resources" $portableDir/ -ErrorAction SilentlyContinue
-          Compress-Archive -Path $portableDir -DestinationPath $zipName -Force
-          Remove-Item -Recurse -Force $portableDir
+          $version = "${{ github.ref_name }}"
+          $src = "src-tauri/target/release/catapult.exe"
+          $dst = "Catapult-CN-$version.exe"
+          Copy-Item $src $dst
+          echo "portable_exe=$dst" >> $env:GITHUB_OUTPUT
 
-      - name: Upload portable ZIP to Release
-        uses: actions/upload-release-asset@v1
+      - name: Upload portable exe to Release
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $file = "Catapult-CN-$version.exe"
+          gh release upload $version $file --clash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.build.outputs.releaseUploadUrl }}
-          asset_path: ./Catapult-CN_${{ github.ref_name }}_x64.zip
-          asset_name: Catapult-CN_${{ github.ref_name }}_x64.zip
-          asset_content_type: application/zip
