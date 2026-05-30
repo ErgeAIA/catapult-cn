@@ -50,7 +50,7 @@ jobs:
 
   build:
     needs: check
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
     environment: ci
     permissions:
       contents: write
