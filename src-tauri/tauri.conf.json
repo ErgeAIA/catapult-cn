@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Catapult",
+  "productName": "Catapult-CN",
   "version": "0.1.5",
   "identifier": "dev.catapult.launcher",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "Catapult",
+        "title": "Catapult-CN",
         "width": 1280,
         "height": 820,
         "minWidth": 1024,
