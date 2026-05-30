@@ -31,8 +31,7 @@
     "active": true,
     "targets": [
       "msi",
-      "nsis",
-      "zip"
+      "nsis"
     ],
     "createUpdaterArtifacts": false,
     "icon": [
