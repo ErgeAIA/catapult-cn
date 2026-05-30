@@ -29,7 +29,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
+    "targets": [
+      "msi",
+      "nsis"
+    ],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
@@ -50,9 +53,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0MDA4NzEwM0U5OTg5MjYKUldRbWlaaytFSWNBcExPMCt4bzBFZDRQODcxQmNjSjVsQ0h5SkcxcElIOURYZEhXT3p1SFRaMmQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBQTFDNzZBMEE2RUZGQTQKUldTay8yNEthc2VodW5GQU50dmxudTBJR3VkNk0yR1Zxc0czUStWMnY5RmV2TXpLZjhnSnRhRmUK",
       "endpoints": [
-        "https://github.com/ErgeAIA/catapult-cn/releases/latest/download/latest.json"	 
+        "https://github.com/ErgeAIA/catapult-cn/releases/latest/download/latest.json"
       ]
     }
   }
