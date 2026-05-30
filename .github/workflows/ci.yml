@@ -90,7 +90,7 @@ jobs:
           $src = "src-tauri/target/release"
           $dst = "Catapult-CN-portable"
           New-Item -ItemType Directory -Force -Path $dst
-          Copy-Item "$src/catapult.exe" $dst/
+          Copy-Item "$src/catapult.exe" "$dst/Catapult-CN.exe"
           Copy-Item "$src/*.dll" $dst/
           $zipName = "Catapult-CN-$version-portable.zip"
           Compress-Archive -Path $dst -DestinationPath $zipName
