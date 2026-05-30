@@ -83,20 +83,24 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - name: Create portable exe
+      - name: Create portable zip
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
-          $src = "src-tauri/target/release/catapult.exe"
-          $dst = "Catapult-CN-$version.exe"
-          Copy-Item $src $dst
-          echo "portable_exe=$dst" >> $env:GITHUB_OUTPUT
+          $src = "src-tauri/target/release"
+          $dst = "Catapult-CN-portable"
+          New-Item -ItemType Directory -Force -Path $dst
+          Copy-Item "$src/catapult.exe" $dst/
+          Copy-Item "$src/*.dll" $dst/
+          $zipName = "Catapult-CN-$version-portable.zip"
+          Compress-Archive -Path $dst -DestinationPath $zipName
+          echo "portable_zip=$zipName" >> $env:GITHUB_OUTPUT
 
-      - name: Upload portable exe to Release
+      - name: Upload portable zip to Release
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
-          $file = "Catapult-CN-$version.exe"
+          $file = "Catapult-CN-$version-portable.zip"
           gh release upload $version $file --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
