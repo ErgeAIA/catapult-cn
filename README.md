@@ -9,23 +9,23 @@
 ## 汉化版差异
 
 - **中文语言支持**：增加了中文翻译，自适应系统语言，也可手动切换语言
-  ![仪表盘](images\catapult-cn-dashboard.png)
+  ![仪表盘](images/catapult-cn-dashboard.png)
 - **【模型】-【已安装】面板增强**：
   - 增加了打开模型所在目录按钮，一键直达模型所在目录
-    ![已安装模型](images\catapult-cn-insts.png)
+    ![已安装模型](images/catapult-cn-insts.png)
 - **【模型】-【推荐】面板增强**：
   - 点击模型名称，跳转到 ModelScope 对应模型页面
   - 增加 ModelScope 下载按钮
-    ![推荐模型](images\catapult-cn-models-recommendation.png)
+    ![推荐模型](images/catapult-cn-models-recommendation.png)
 - 增加\*\*【浏览 ModelScope】面板\*\*：
   - 可从 ModelScope 上搜索模型，无需魔法直接下载
   - 点击搜索结果中模型名称，可跳转到模型页面，可用作模型管理
-    ![浏览 ModelScope](images\catapult-cn-modelscope.png)
+    ![浏览 ModelScope](images/catapult-cn-modelscope.png)
 - **【运行】面板预设增强**：
   - 增加了七套预设，根据自身硬件点击可切换
 - **界面信息增强**：
   - 软件界面增加了原版 GitHub 和汉化版本 GitHub 地址，方便查看
-    ![运行/预设](images\catapult-cn-runserver.png)
+    ![运行/预设](images/catapult-cn-runserver.png)
 
 ## 部署示例
 
@@ -69,7 +69,7 @@
 3. 点击 **启动服务器**
 4. 进入 **【聊天】** 标签页开始对话
 
-![部署示例](images\placeholder.png)
+![部署示例](images/catapult-cn-runserver.png)
 
 ***
 
