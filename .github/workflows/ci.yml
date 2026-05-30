@@ -97,6 +97,6 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}"
           $file = "Catapult-CN-$version.exe"
-          gh release upload $version $file --clash
+          gh release upload $version $file --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
