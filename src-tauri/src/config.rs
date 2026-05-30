@@ -89,9 +89,9 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn config_path() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Cannot find data directory"))?;
-        Ok(data_dir.join("catapult").join("config.json"))
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?;
+        Ok(config_dir.join("catapult").join("config.json"))
     }
 
     pub fn load() -> Result<Self> {
@@ -177,21 +177,21 @@ impl AppConfig {
     // ── Path helpers ─────────────────────────────────────────────────────────
 
     pub fn default_models_dir() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Cannot find data directory"))?;
-        Ok(data_dir.join("catapult").join("models"))
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?;
+        Ok(config_dir.join("catapult").join("models"))
     }
 
     pub fn default_runtime_dir() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Cannot find data directory"))?;
-        Ok(data_dir.join("catapult").join("runtime"))
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?;
+        Ok(config_dir.join("catapult").join("runtime"))
     }
 
     pub fn runtimes_base_dir() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Cannot find data directory"))?;
-        Ok(data_dir.join("catapult").join("runtimes"))
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?;
+        Ok(config_dir.join("catapult").join("runtimes"))
     }
 
     pub fn models_dir(&self) -> Result<PathBuf> {
@@ -249,9 +249,9 @@ impl AppConfig {
     }
 
     pub fn presets_dir() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Cannot find data directory"))?;
-        Ok(data_dir.join("catapult").join("presets"))
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?;
+        Ok(config_dir.join("catapult").join("presets"))
     }
 
     // ── Runtime helpers ──────────────────────────────────────────────────────

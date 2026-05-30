@@ -163,6 +163,7 @@ pub struct RecommendedModel {
     pub estimated_size_mb: u64,
     pub installed: bool,
     pub installed_path: Option<PathBuf>,
+    pub ms_model_id: Option<String>,
 }
 
 // ── GGUF metadata cache ──────────────────────────────────────────────────────
@@ -186,8 +187,8 @@ struct GgufCacheEntry {
 type GgufCache = HashMap<String, GgufCacheEntry>;
 
 fn cache_path() -> Option<PathBuf> {
-    let data_dir = dirs::data_dir()?;
-    Some(data_dir.join("catapult").join("gguf_cache.json"))
+    let config_dir = dirs::config_dir()?;
+    Some(config_dir.join("catapult").join("gguf_cache.json"))
 }
 
 fn load_cache() -> GgufCache {
@@ -529,6 +530,7 @@ pub fn get_recommended_models(config: &AppConfig) -> Result<Vec<RecommendedModel
                 estimated_size_mb,
                 installed: installed_model.is_some(),
                 installed_path: installed_model.map(|m| m.path.clone()),
+                ms_model_id: def.ms_model_id.map(|s| s.to_string()),
             }
         })
         .collect();

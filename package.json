@@ -21,9 +21,12 @@
     "@tauri-apps/plugin-shell": "^2",
     "@tauri-apps/plugin-updater": "^2",
     "clsx": "^2.1.1",
+    "i18next": "^26.3.0",
+    "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.5.5"
   },

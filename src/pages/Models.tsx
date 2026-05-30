@@ -17,16 +17,19 @@ import {
   ArrowDown,
   Filter,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type {
   ModelInfo,
   RecommendedModel,
   HfModel,
   HfFile,
+  MsModel,
+  MsFile,
   KnownOwner,
   DownloadProgress,
 } from "../types";
 
-type Tab = "installed" | "recommended" | "browse" | "settings";
+type Tab = "installed" | "recommended" | "browse" | "browseMs" | "settings";
 type SortCol = "name" | "params" | "quant" | "size" | "ctx";
 type SortDir = "asc" | "desc";
 
@@ -39,6 +42,7 @@ function QuantBadge({ quant }: { quant: string }) {
 }
 
 export default function Models() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("installed");
   const [installed, setInstalled] = useState<ModelInfo[]>([]);
   const [recommended, setRecommended] = useState<RecommendedModel[]>([]);
@@ -66,6 +70,15 @@ export default function Models() {
     file: HfFile;
     mmProjFiles: HfFile[];
   } | null>(null);
+
+  // ModelScope state
+  const [msSearchResults, setMsSearchResults] = useState<MsModel[]>([]);
+  const [msSearchQuery, setMsSearchQuery] = useState("");
+  const [msSearching, setMsSearching] = useState(false);
+  const [msExpandedRepo, setMsExpandedRepo] = useState<string | null>(null);
+  const [msRepoFiles, setMsRepoFiles] = useState<Record<string, MsFile[]>>({});
+  const [msOwners, setMsOwners] = useState<KnownOwner[]>([]);
+  const [msSelectedOwner, setMsSelectedOwner] = useState<string>("");
 
   const reloadDirs = useCallback(async () => {
     try {
@@ -104,6 +117,7 @@ export default function Models() {
     reloadFavorites();
     invoke<KnownOwner[]>("get_known_owners").then(setOwners).catch(() => {});
     invoke<string[]>("get_preferred_owners").then(setPreferredOwners).catch(() => {});
+    invoke<KnownOwner[]>("get_ms_known_owners").then(setMsOwners).catch(() => {});
 
     const unlisten = listen<DownloadProgress>("download_progress", (e) => {
       const p = e.payload;
@@ -136,6 +150,64 @@ export default function Models() {
       setError(String(e));
     } finally {
       setSearching(false);
+    }
+  };
+
+  const doMsSearch = async () => {
+    if (!msSearchQuery.trim() && !msSelectedOwner) return;
+    setMsSearching(true);
+    setError(null);
+    try {
+      const results = await invoke<MsModel[]>("search_ms_models", {
+        query: msSearchQuery.trim(),
+        owner: msSelectedOwner || null,
+      });
+      setMsSearchResults(results);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setMsSearching(false);
+    }
+  };
+
+  const toggleMsRepo = async (modelId: string) => {
+    if (msExpandedRepo === modelId) {
+      setMsExpandedRepo(null);
+      return;
+    }
+    setMsExpandedRepo(modelId);
+    if (!msRepoFiles[modelId]) {
+      try {
+        const files = await invoke<MsFile[]>("get_ms_repo_files", { modelId });
+        setMsRepoFiles((prev) => ({ ...prev, [modelId]: files }));
+      } catch (e) {
+        setError(String(e));
+      }
+    }
+  };
+
+  const startMsDownload = async (
+    modelId: string,
+    file: MsFile,
+    companionModel?: string
+  ) => {
+    setDownloads((prev) => {
+      const { [file.filename]: _, ...rest } = prev;
+      return rest;
+    });
+    try {
+      await invoke("download_model", {
+        repoId: modelId,
+        filename: file.filename,
+        downloadUrl: file.download_url,
+        sizeBytes: file.size_bytes,
+        splitParts: file.is_split && file.split_parts.length > 0 ? file.split_parts : null,
+        companionModel: companionModel ?? null,
+      });
+    } catch (e) {
+      if (!String(e).includes("failed after")) {
+        setError(String(e));
+      }
     }
   };
 
@@ -227,7 +299,7 @@ export default function Models() {
   };
 
   const addModelDir = async () => {
-    const selected = await open({ directory: true, title: "Add GGUF storage directory" });
+    const selected = await open({ directory: true, title: t("models.settings.selectStorageDir") });
     if (selected) {
       try {
         await invoke("add_model_dir", { path: selected });
@@ -253,7 +325,7 @@ export default function Models() {
   };
 
   const browseNewDownloadDir = async () => {
-    const selected = await open({ directory: true, title: "Select default download directory" });
+    const selected = await open({ directory: true, title: t("models.settings.selectDownloadDir") });
     if (selected) {
       await changeDownloadDir(selected);
       await reload();
@@ -272,19 +344,20 @@ export default function Models() {
   };
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "installed", label: `Installed (${installed.length})` },
-    { id: "recommended", label: "Recommended" },
-    { id: "browse", label: "Browse HuggingFace" },
-    { id: "settings", label: "Settings" },
+    { id: "installed", label: t("models.tabs.installed", { count: installed.length }) },
+    { id: "recommended", label: t("models.tabs.recommended") },
+    { id: "browse", label: t("models.tabs.browse") },
+    { id: "browseMs", label: t("models.tabs.browseMs") },
+    { id: "settings", label: t("models.tabs.settings") },
   ];
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-6 pt-6 pb-4 border-b border-border">
-        <h1 className="text-2xl font-bold text-gray-100">Models</h1>
+        <h1 className="text-2xl font-bold text-gray-100">{t("models.title")}</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Download and manage GGUF models
+          {t("models.desc")}
         </p>
         {/* Tabs */}
         <div className="flex gap-1 mt-4">
@@ -312,7 +385,7 @@ export default function Models() {
               className="text-xs text-accent-red/70 hover:text-accent-red mt-1"
               onClick={() => setError(null)}
             >
-              Dismiss
+              {t("models.dismiss")}
             </button>
           </div>
         )}
@@ -320,7 +393,7 @@ export default function Models() {
         {/* ── Active downloads (visible across all tabs) ── */}
         {Object.keys(downloads).length > 0 && (
           <div className="mb-4 card">
-            <h3 className="text-xs font-medium text-gray-400 mb-2">Downloading</h3>
+            <h3 className="text-xs font-medium text-gray-400 mb-2">{t("models.downloading")}</h3>
             <div className="space-y-2">
               {Object.entries(downloads).map(([filename, dl]) => (
                 <div key={filename}>
@@ -329,9 +402,9 @@ export default function Models() {
                     <div className="flex items-center gap-2 shrink-0">
                       {dl.status === "paused" ? (
                         <>
-                          <span className="text-[10px] text-accent-yellow">Paused</span>
+                          <span className="text-[10px] text-accent-yellow">{t("models.paused")}</span>
                           <button className="btn-danger text-[10px] py-0.5 px-1.5" onClick={() => abortDownload(filename)}>
-                            Abort
+                            {t("models.abort")}
                           </button>
                         </>
                       ) : (
@@ -399,10 +472,10 @@ export default function Models() {
               {installed.length === 0 ? (
                 <div className="card text-center py-12 text-gray-500">
                   <HardDrive size={32} className="mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No models installed yet.</p>
+                  <p className="text-sm">{t("models.noModels")}</p>
                   <button className="text-sm text-primary-light hover:underline mt-2"
                     onClick={() => setTab("recommended")}>
-                    Browse recommended models →
+                    {t("models.browseRecommended")}
                   </button>
                 </div>
               ) : (
@@ -411,34 +484,35 @@ export default function Models() {
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex items-center gap-1.5 flex-1">
                       <Filter size={12} className="text-gray-500" />
-                      <input className="input text-xs py-1 flex-1" placeholder="Filter by name…"
+                      <input className="input text-xs py-1 flex-1" placeholder={t("models.filter.name")}
                         value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
                     </div>
-                    <input className="input text-xs py-1 w-28" placeholder="Quant…"
+                    <input className="input text-xs py-1 w-28" placeholder={t("models.filter.quant")}
                       value={quantFilter} onChange={(e) => setQuantFilter(e.target.value)} />
-                    <span className="text-xs text-gray-500">{sorted.length} model{sorted.length !== 1 ? "s" : ""}</span>
+                    <span className="text-xs text-gray-500">{t(sorted.length === 1 ? "models.filter.modelsFound" : "models.filter.modelsFound_plural", { count: sorted.length })}</span>
                   </div>
 
                   {/* Table header */}
                   <div className="flex items-center gap-2 px-3 py-2 border-b border-border text-[10px] font-semibold text-gray-500 uppercase tracking-wider select-none">
-                    <button className="w-6 flex justify-center" title="Reset to favorites-first"
+                    <button className="w-6 flex justify-center" title={t("models.table.resetSort")}
                       onClick={() => { setSortCol("name"); setSortDir("asc"); setExplicitSort(false); }}>
                       <Star size={10} className={explicitSort ? "text-gray-600" : "text-accent-yellow"} />
                     </button>
                     <button className="flex-1 flex items-center gap-1 group text-left" onClick={() => toggleSort("name")}>
-                      Model <SortIcon col="name" />
+                      {t("models.table.model")} <SortIcon col="name" />
                     </button>
+                    <span className="w-6" />
                     <button className="w-16 flex items-center gap-1 group justify-end" onClick={() => toggleSort("params")}>
-                      Params <SortIcon col="params" />
+                      {t("models.table.params")} <SortIcon col="params" />
                     </button>
                     <button className="w-20 flex items-center gap-1 group justify-end" onClick={() => toggleSort("quant")}>
-                      Quant <SortIcon col="quant" />
+                      {t("models.table.quant")} <SortIcon col="quant" />
                     </button>
                     <button className="w-16 flex items-center gap-1 group justify-end" onClick={() => toggleSort("ctx")}>
-                      Ctx <SortIcon col="ctx" />
+                      {t("models.table.ctx")} <SortIcon col="ctx" />
                     </button>
                     <button className="w-20 flex items-center gap-1 group justify-end" onClick={() => toggleSort("size")}>
-                      Size <SortIcon col="size" />
+                      {t("models.table.size")} <SortIcon col="size" />
                     </button>
                     <span className="w-8" />
                   </div>
@@ -452,13 +526,20 @@ export default function Models() {
                         className="flex items-center gap-2 px-3 py-2 border-b border-border/50 hover:bg-surface-3 transition-colors">
                         <button className="w-6 flex justify-center shrink-0"
                           onClick={() => toggleFavorite(m.id)}
-                          title={isFav ? "Remove from favorites" : "Add to favorites"}>
+                          title={isFav ? t("models.removeFromFavorites") : t("models.addToFavorites")}>
                           <Star size={13} className={isFav ? "text-accent-yellow fill-accent-yellow" : "text-gray-600 hover:text-gray-400"} />
                         </button>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-200 truncate">{m.name}</p>
                           <p className="text-[10px] text-gray-600 truncate font-mono">{m.filename}</p>
                         </div>
+                        <button
+                          className="w-6 flex justify-center shrink-0 text-gray-600 hover:text-gray-300"
+                          onClick={() => invoke("open_model_dir", { path: m.path })}
+                          title={t("models.openDir")}
+                        >
+                          <FolderOpen size={13} />
+                        </button>
                         <span className="w-16 text-right text-xs text-gray-400">
                           {m.params_b ?? "—"}
                         </span>
@@ -472,14 +553,14 @@ export default function Models() {
                           {formatSize(m.size_bytes)}
                         </span>
                         <button className="w-8 flex justify-center text-gray-600 hover:text-accent-red"
-                          onClick={() => deleteModel(m)} disabled={deletingId === m.id} title="Delete model">
+                          onClick={() => deleteModel(m)} disabled={deletingId === m.id} title={t("models.deleteModel")}>
                           <Trash2 size={13} />
                         </button>
                       </div>
                       );
                     })}
                     {sorted.length === 0 && filtered.length === 0 && installed.length > 0 && (
-                      <p className="text-sm text-gray-500 py-6 text-center">No models match the filter.</p>
+                      <p className="text-sm text-gray-500 py-6 text-center">{t("models.filter.noMatch")}</p>
                     )}
                   </div>
                 </>
@@ -499,20 +580,29 @@ export default function Models() {
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-gray-200">
+                        <span
+                          className="text-sm font-semibold text-gray-200 hover:text-primary-light transition-colors cursor-pointer"
+                          onClick={async () => {
+                            const url = m.ms_model_id
+                              ? `https://modelscope.cn/models/${m.ms_model_id}`
+                              : `https://huggingface.co/${m.repo_id}`;
+                            await invoke("open_url", { url });
+                          }}
+                          title={t("models.openModelPage")}
+                        >
                           {m.name}
                         </span>
                         <QuantBadge quant={m.quant} />
-                        <span className="badge-gray text-[10px]">{m.params_b}B params</span>
+                        <span className="badge-gray text-[10px]">{t("models.paramsB", { params: m.params_b })}</span>
                         {m.context != null && (
                           <span className="badge-gray text-[10px]">
-                            ctx {(m.context / 1024).toFixed(0)}K
+                            {t("models.ctxK", { ctx: (m.context / 1024).toFixed(0) })}
                           </span>
                         )}
                         {m.installed && (
                           <span className="badge-green text-[10px]">
                             <CheckCircle size={9} className="mr-0.5" />
-                            Installed
+                            {t("models.installed")}
                           </span>
                         )}
                       </div>
@@ -523,30 +613,53 @@ export default function Models() {
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-2">
                       <span className="text-xs text-gray-500">
-                        ~{formatSize(m.estimated_size_mb * 1024 * 1024)}
+                        {t("models.estimatedSize", { size: formatSize(m.estimated_size_mb * 1024 * 1024) })}
                       </span>
                       {!m.installed && !isDownloading && (
-                        <button
-                          className="btn-primary text-xs"
-                          onClick={() =>
-                            startDownload(m.repo_id, {
-                              filename: m.filename,
-                              size_bytes: m.estimated_size_mb * 1024 * 1024,
-                              quant: m.quant,
-                              download_url: `https://huggingface.co/${m.repo_id}/resolve/main/${m.filename}`,
-                              is_split: false,
-                              split_parts: [],
-                              is_mmproj: false,
-                            })
-                          }
-                        >
-                          <Download size={12} />
-                          Download
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            className="btn-primary text-xs"
+                            onClick={() =>
+                              startDownload(m.repo_id, {
+                                filename: m.filename,
+                                size_bytes: m.estimated_size_mb * 1024 * 1024,
+                                quant: m.quant,
+                                download_url: `https://huggingface.co/${m.repo_id}/resolve/main/${m.filename}`,
+                                is_split: false,
+                                split_parts: [],
+                                is_mmproj: false,
+                              })
+                            }
+                          >
+                            <Download size={12} />
+                            HuggingFace
+                          </button>
+                          {m.ms_model_id && (
+                            <button
+                              className="text-xs px-2.5 py-1.5 border border-[#5a57ea] bg-[#5a57ea] text-white hover:bg-[#4a47da] transition-colors flex items-center gap-1.5"
+                              onClick={async () => {
+                                try {
+                                  const files = await invoke<MsFile[]>("get_ms_repo_files", { modelId: m.ms_model_id });
+                                  const target = files.find((f) => f.filename === m.filename || f.filename.endsWith(`/${m.filename}`));
+                                  if (target) {
+                                    startMsDownload(m.ms_model_id!, target);
+                                  } else {
+                                    await invoke("open_url", { url: `https://modelscope.cn/models/${m.ms_model_id}` });
+                                  }
+                                } catch (e) {
+                                  await invoke("open_url", { url: `https://modelscope.cn/models/${m.ms_model_id}` });
+                                }
+                              }}
+                            >
+                              <Download size={12} />
+                              ModelScope
+                            </button>
+                          )}
+                        </div>
                       )}
                       {m.installed && (
                         <span className="text-xs text-accent-green flex items-center gap-1">
-                          <CheckCircle size={11} /> Ready
+                          <CheckCircle size={11} /> {t("models.ready")}
                         </span>
                       )}
                     </div>
@@ -555,9 +668,9 @@ export default function Models() {
                     <div className="mt-3">
                       <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
                         <span>
-                          {dl.status === "paused" ? "Paused — download failed" :
-                           dl.status.startsWith("retrying") ? `Retrying… (${dl.status})` :
-                           dl.status === "extracting" ? "Extracting…" : "Downloading…"}
+                          {dl.status === "paused" ? t("models.pausedDesc") :
+                           dl.status.startsWith("retrying") ? t("models.retrying") :
+                           dl.status === "extracting" ? t("models.extracting") : t("models.downloading")}
                         </span>
                         <span>{dl.percent.toFixed(1)}%</span>
                       </div>
@@ -580,10 +693,10 @@ export default function Models() {
                               is_mmproj: false,
                             })
                           }>
-                            Resume
+                            {t("models.resume")}
                           </button>
                           <button className="btn-danger text-xs" onClick={() => abortDownload(m.filename)}>
-                            Abort
+                            {t("models.abort")}
                           </button>
                         </div>
                       )}
@@ -607,7 +720,7 @@ export default function Models() {
                 />
                 <input
                   className="input pl-9"
-                  placeholder="Search models (e.g. llama, mistral, qwen)"
+                  placeholder={t("models.search.placeholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && doSearch()}
@@ -618,7 +731,7 @@ export default function Models() {
                 value={selectedOwner}
                 onChange={(e) => setSelectedOwner(e.target.value)}
               >
-                <option value="">Any owner</option>
+                <option value="">{t("models.search.anyOwner")}</option>
                 {owners.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.id}
@@ -630,7 +743,7 @@ export default function Models() {
                 onClick={doSearch}
                 disabled={searching}
               >
-                {searching ? "…" : "Search"}
+                {searching ? t("models.search.searching") : t("models.search.search")}
               </button>
             </div>
 
@@ -649,13 +762,13 @@ export default function Models() {
                             {model.name}
                           </span>
                           <span className="text-xs text-gray-500">
-                            by {model.author}
+                            {t("models.search.by")} {model.author}
                           </span>
                         </div>
                         <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                          <span>↓ {(model.downloads / 1000).toFixed(0)}K</span>
-                          <span>♥ {model.likes}</span>
-                          <span>{model.files.length} GGUF files</span>
+                          <span>{t("models.search.downloads", { count: (model.downloads / 1000).toFixed(0) })}</span>
+                          <span>{t("models.search.likes", { count: model.likes })}</span>
+                          <span>{t("models.search.files", { count: model.files.length })}</span>
                         </div>
                       </div>
                       {expandedRepo === model.repo_id ? (
@@ -690,7 +803,7 @@ export default function Models() {
                                       )}
                                       {f.is_split && (
                                         <span className="badge-gray text-[10px]">
-                                          {f.split_parts.length} parts
+                                          {t("models.search.splitParts", { count: f.split_parts.length })}
                                         </span>
                                       )}
                                     </div>
@@ -700,20 +813,20 @@ export default function Models() {
                                   </span>
                                   {isInstalled ? (
                                     <span className="badge-green text-[10px] shrink-0">
-                                      Installed
+                                      {t("models.installed")}
                                     </span>
                                   ) : dl ? (
                                     <div className="shrink-0 flex items-center gap-2">
                                       {dl.status === "paused" ? (
                                         <>
-                                          <span className="text-[10px] text-accent-yellow">Paused {dl.percent.toFixed(0)}%</span>
+                                          <span className="text-[10px] text-accent-yellow">{t("models.paused")} {dl.percent.toFixed(0)}%</span>
                                           <button className="btn-primary text-[10px] py-0.5 px-1.5"
                                             onClick={() => startDownload(model.repo_id, f)}>
-                                            Resume
+                                            {t("models.resume")}
                                           </button>
                                           <button className="btn-danger text-[10px] py-0.5 px-1.5"
                                             onClick={() => abortDownload(f.filename)}>
-                                            Abort
+                                            {t("models.abort")}
                                           </button>
                                         </>
                                       ) : (
@@ -740,12 +853,12 @@ export default function Models() {
                             })
                           ) : (
                             <p className="text-xs text-gray-500 px-2">
-                              No GGUF files in this repo.
+                              {t("models.search.noFiles")}
                             </p>
                           )
                         ) : (
                           <p className="text-xs text-gray-500 px-2">
-                            Loading files…
+                            {t("models.search.loadingFiles")}
                           </p>
                         )}
                       </div>
@@ -757,10 +870,188 @@ export default function Models() {
               <div className="card text-center py-12 text-gray-500">
                 <Search size={28} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">
-                  Search for GGUF models on HuggingFace.
+                  {t("models.search.noResults")}
                 </p>
                 <p className="text-xs mt-1 text-gray-600">
-                  Try "llama 3", "mistral", or select an owner to browse.
+                  {t("models.search.hint")}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* ── Browse ModelScope tab ── */}
+        {tab === "browseMs" && (
+          <div className="space-y-4">
+            {/* Search bar */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                />
+                <input
+                  className="input pl-9"
+                  placeholder={t("models.searchMs.placeholder")}
+                  value={msSearchQuery}
+                  onChange={(e) => setMsSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && doMsSearch()}
+                />
+              </div>
+              <select
+                className="input w-48"
+                value={msSelectedOwner}
+                onChange={(e) => setMsSelectedOwner(e.target.value)}
+              >
+                <option value="">{t("models.search.anyOwner")}</option>
+                {msOwners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.id}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn-primary"
+                onClick={doMsSearch}
+                disabled={msSearching}
+              >
+                {msSearching ? t("models.search.searching") : t("models.search.search")}
+              </button>
+            </div>
+
+            {/* Results */}
+            {msSearchResults.length > 0 ? (
+              <div className="space-y-2">
+                {msSearchResults.map((model) => (
+                  <div key={model.model_id} className="card">
+                    <button
+                      className="w-full flex items-start gap-3 text-left"
+                      onClick={() => toggleMsRepo(model.model_id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-sm font-medium text-gray-200 truncate hover:text-primary-light transition-colors"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await invoke("open_url", { url: `https://modelscope.cn/models/${model.model_id}` });
+                            }}
+                            title={t("models.openModelPage")}
+                          >
+                            {model.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {t("models.search.by")} {model.author}
+                          </span>
+                        </div>
+                        <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                          <span>{t("models.search.downloads", { count: (model.downloads / 1000).toFixed(0) })}</span>
+                          <span>{t("models.search.likes", { count: model.likes })}</span>
+                        </div>
+                      </div>
+                      {msExpandedRepo === model.model_id ? (
+                        <ChevronUp size={14} className="text-gray-500 mt-0.5 shrink-0" />
+                      ) : (
+                        <ChevronDown size={14} className="text-gray-500 mt-0.5 shrink-0" />
+                      )}
+                    </button>
+
+                    {msExpandedRepo === model.model_id && (
+                      <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                        {msRepoFiles[model.model_id] ? (
+                          msRepoFiles[model.model_id].filter((f) => !f.is_mmproj).length > 0 ? (
+                            msRepoFiles[model.model_id].filter((f) => !f.is_mmproj).map((f) => {
+                              const dl = downloads[f.filename];
+                              const msBasename = f.filename.includes('/') ? f.filename.split('/').pop()! : f.filename;
+                              const isInstalled = installed.some(
+                                (m) => m.filename === msBasename
+                              );
+                              return (
+                                <div
+                                  key={f.filename}
+                                  className="flex items-center gap-3 px-2 py-2  hover:bg-surface-3"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-xs text-gray-300 font-mono truncate block">
+                                      {f.filename}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      {f.quant && (
+                                        <QuantBadge quant={f.quant} />
+                                      )}
+                                      {f.is_split && (
+                                        <span className="badge-gray text-[10px]">
+                                          {t("models.search.splitParts", { count: f.split_parts.length })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-xs text-gray-500 shrink-0">
+                                    {formatSize(f.size_bytes)}
+                                  </span>
+                                  {isInstalled ? (
+                                    <span className="badge-green text-[10px] shrink-0">
+                                      {t("models.installed")}
+                                    </span>
+                                  ) : dl ? (
+                                    <div className="shrink-0 flex items-center gap-2">
+                                      {dl.status === "paused" ? (
+                                        <>
+                                          <span className="text-[10px] text-accent-yellow">{t("models.paused")} {dl.percent.toFixed(0)}%</span>
+                                          <button className="btn-primary text-[10px] py-0.5 px-1.5"
+                                            onClick={() => startMsDownload(model.model_id, f)}>
+                                            {t("models.resume")}
+                                          </button>
+                                          <button className="btn-danger text-[10px] py-0.5 px-1.5"
+                                            onClick={() => abortDownload(f.filename)}>
+                                            {t("models.abort")}
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <div className="w-20">
+                                          <div className="progress-bar">
+                                            <div className="progress-fill" style={{ width: `${dl.percent}%` }} />
+                                          </div>
+                                          {dl.status.startsWith("retrying") && (
+                                            <span className="text-[10px] text-accent-yellow">{dl.status}</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <button
+                                      className="btn-secondary text-xs shrink-0"
+                                      onClick={() => startMsDownload(model.model_id, f)}
+                                    >
+                                      <Download size={11} />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-gray-500 px-2">
+                              {t("models.search.noFiles")}
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-xs text-gray-500 px-2">
+                            {t("models.search.loadingFiles")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : !msSearching ? (
+              <div className="card text-center py-12 text-gray-500">
+                <Search size={28} className="mx-auto mb-3 opacity-30" />
+                <p className="text-sm">
+                  {t("models.searchMs.noResults")}
+                </p>
+                <p className="text-xs mt-1 text-gray-600">
+                  {t("models.searchMs.hint")}
                 </p>
               </div>
             ) : null}
@@ -772,16 +1063,16 @@ export default function Models() {
           <div className="space-y-6">
             {/* Download directory */}
             <div className="card">
-              <h2 className="section-title">Download Directory</h2>
+              <h2 className="section-title">{t("models.settings.downloadDir")}</h2>
               <p className="text-xs text-gray-500 mb-3">
-                New models are downloaded to this directory.
+                {t("models.settings.downloadDirDesc")}
               </p>
               <div className="flex items-center gap-3">
                 <span className="flex-1 text-sm font-mono text-gray-300 truncate">
                   {downloadDir}
                 </span>
                 <button className="btn-ghost text-xs" onClick={browseNewDownloadDir}>
-                  <FolderOpen size={12} /> Change
+                  <FolderOpen size={12} /> {t("models.settings.change")}
                 </button>
               </div>
             </div>
@@ -790,13 +1081,13 @@ export default function Models() {
             <div className="card">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="section-title">GGUF Storage Directories</h2>
+                  <h2 className="section-title">{t("models.settings.storageDirs")}</h2>
                   <p className="text-xs text-gray-500">
-                    All directories below are scanned recursively for .gguf files.
+                    {t("models.settings.storageDirsDesc")}
                   </p>
                 </div>
                 <button className="btn-secondary text-xs" onClick={addModelDir}>
-                  <FolderPlus size={13} /> Add Directory
+                  <FolderPlus size={13} /> {t("models.settings.addDirectory")}
                 </button>
               </div>
 
@@ -818,14 +1109,14 @@ export default function Models() {
                       </span>
                       {isDownload && (
                         <span className="badge-purple text-[10px] shrink-0">
-                          <Star size={9} className="mr-0.5" /> Download
+                          <Star size={9} className="mr-0.5" /> {t("models.settings.download")}
                         </span>
                       )}
                       {!isDownload && (
                         <button
                           className="btn-ghost text-xs py-0.5 px-1.5"
                           onClick={() => changeDownloadDir(dir)}
-                          title="Set as download directory"
+                          title={t("models.settings.setDownload")}
                         >
                           <Star size={11} />
                         </button>
@@ -834,7 +1125,7 @@ export default function Models() {
                         <button
                           className="text-gray-600 hover:text-accent-red"
                           onClick={() => removeModelDir(dir)}
-                          title="Remove directory"
+                          title={t("models.settings.remove")}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -847,9 +1138,9 @@ export default function Models() {
 
             {/* Preferred quant sources */}
             <div className="card">
-              <h2 className="section-title">Preferred Quant Sources</h2>
+              <h2 className="section-title">{t("models.settings.preferredOwners")}</h2>
               <p className="text-xs text-gray-500 mb-3">
-                HuggingFace users/orgs shown in the Browse tab owner filter, in your preferred order.
+                {t("models.settings.preferredOwnersDesc")}
               </p>
               <PreferredOwners
                 owners={preferredOwners}
@@ -871,17 +1162,17 @@ export default function Models() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-sm font-semibold text-gray-200">
-              Download options
+              {t("models.mmproj.title")}
             </h3>
             <p className="text-xs text-gray-400">
-              This repo contains vision projection (mmproj) files. Download them alongside the model for vision support.
+              {t("models.mmproj.desc")}
             </p>
             <div className="space-y-1.5">
               <button
                 className="w-full text-left px-3 py-2 rounded hover:bg-surface-3 text-sm text-gray-200"
                 onClick={() => handleMmProjChoice(null)}
               >
-                Just the model
+                {t("models.mmproj.justModel")}
                 <span className="text-xs text-gray-500 ml-2">
                   {formatSize(mmProjPicker.file.size_bytes)}
                 </span>
@@ -892,7 +1183,7 @@ export default function Models() {
                   className="w-full text-left px-3 py-2 rounded hover:bg-surface-3 text-sm text-gray-200"
                   onClick={() => handleMmProjChoice(mp)}
                 >
-                  Model + {mp.filename}
+                  {t("models.mmproj.modelPlus", { file: mp.filename })}
                   <span className="text-xs text-gray-500 ml-2">
                     {formatSize(mmProjPicker.file.size_bytes + mp.size_bytes)}
                   </span>
@@ -903,7 +1194,7 @@ export default function Models() {
               className="btn-ghost text-xs w-full"
               onClick={() => setMmProjPicker(null)}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>

@@ -2,12 +2,14 @@ pub mod config;
 pub mod hardware;
 pub mod huggingface;
 pub mod models;
+pub mod modelscope;
 pub mod runtime;
 pub mod server;
 
 use config::AppConfig;
 use hardware::{suggest_config, BackendInfo, SystemInfo};
 use huggingface::{HfFile, HfFilePart, HfModel, KNOWN_GGUF_OWNERS};
+use modelscope::{MsFile, MsModel};
 use models::{ModelInfo, RecommendedModel};
 use runtime::{ReleaseInfo, RuntimeInfo};
 use server::{ServerConfig, ServerStatus, SharedServerState};
@@ -309,6 +311,14 @@ async fn validate_hf_owner(
 }
 
 #[tauri::command]
+async fn get_ms_known_owners() -> Result<Vec<serde_json::Value>, String> {
+    Ok(KNOWN_GGUF_OWNERS
+        .iter()
+        .map(|(id, desc)| serde_json::json!({ "id": id, "description": desc }))
+        .collect())
+}
+
+#[tauri::command]
 async fn search_hf_models(
     query: String,
     owner: Option<String>,
@@ -325,6 +335,29 @@ async fn get_hf_repo_files(
     state: State<'_, AppState>,
 ) -> Result<Vec<HfFile>, String> {
     huggingface::get_repo_files(&state.http_client, &repo_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ── ModelScope commands ──────────────────────────────────────────────────────
+
+#[tauri::command]
+async fn search_ms_models(
+    query: String,
+    owner: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<MsModel>, String> {
+    modelscope::search_models(&state.http_client, &query, owner.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_ms_repo_files(
+    model_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<MsFile>, String> {
+    modelscope::get_repo_files(&state.http_client, &model_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -617,12 +650,287 @@ async fn set_wizard_completed(completed: bool, state: State<'_, AppState>) -> Re
 
 // ── Server config presets ────────────────────────────────────────────────────
 
+const BUILTIN_PRESETS: &[(&str, &str)] = &[
+    (
+        "A-编码与智能体",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 65536,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": -1,
+  "n_batch": 2048,
+  "n_ubatch": 512,
+  "cont_batching": true,
+  "mlock": true,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "B-通用对话",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 32768,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.8,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": -1,
+  "n_batch": 2048,
+  "n_ubatch": 512,
+  "cont_batching": true,
+  "mlock": true,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "repeat-penalty": "1.10",
+    "repeat-last-n": "512",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "C-显存受限(8GB)",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 8192,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": 2048,
+  "n_batch": 1024,
+  "n_ubatch": 256,
+  "cont_batching": false,
+  "mlock": false,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "moe": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "D1-8G显存",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 8192,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": 2048,
+  "n_batch": 1024,
+  "n_ubatch": 256,
+  "cont_batching": false,
+  "mlock": false,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "moe": "",
+    "fit": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "D2-12G显存",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 16384,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": -1,
+  "n_batch": 2048,
+  "n_ubatch": 512,
+  "cont_batching": true,
+  "mlock": false,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "fit": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "D3-16G显存",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 32768,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": -1,
+  "n_batch": 2048,
+  "n_ubatch": 512,
+  "cont_batching": true,
+  "mlock": true,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 1,
+  "extra_params": {
+    "kv-unified": "",
+    "fit": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+    (
+        "D4-24G显存",
+        r#"{
+  "model_path": "",
+  "mmproj_path": null,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "n_ctx": 65536,
+  "n_gpu_layers": -1,
+  "n_threads": null,
+  "flash_attn": "on",
+  "cache_type_k": "bf16",
+  "cache_type_v": "bf16",
+  "temperature": 0.6,
+  "top_k": 40,
+  "min_p": 0.05,
+  "top_p": 0.95,
+  "n_predict": -1,
+  "n_batch": 4096,
+  "n_ubatch": 512,
+  "cont_batching": true,
+  "mlock": true,
+  "no_mmap": false,
+  "seed": null,
+  "rope_freq_scale": null,
+  "rope_freq_base": null,
+  "grp_attn_n": null,
+  "grp_attn_w": null,
+  "parallel": 2,
+  "extra_params": {
+    "kv-unified": "",
+    "fit": "",
+    "alias": "ergeaia",
+    "api-key": "857857"
+  }
+}"#,
+    ),
+];
+
+fn init_builtin_presets() -> Result<(), String> {
+    let dir = AppConfig::presets_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    for (name, content) in BUILTIN_PRESETS {
+        let path = dir.join(format!("{}.json", name));
+        if !path.exists() {
+            if let Err(e) = std::fs::write(&path, content) {
+                eprintln!("[WARN] Failed to write preset '{}': {}", name, e);
+            }
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 async fn list_server_presets() -> Result<Vec<String>, String> {
+    init_builtin_presets()?;
     let dir = AppConfig::presets_dir().map_err(|e| e.to_string())?;
-    if !dir.exists() {
-        return Ok(vec![]);
-    }
     let mut names = Vec::new();
     for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -677,6 +985,18 @@ async fn set_model_preset(model_path: String, preset_name: String, state: State<
     let mut config = state.config.lock().unwrap();
     config.model_presets.insert(model_path, preset_name);
     config.save().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn open_url(url: String) -> Result<(), String> {
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn open_model_dir(path: String) -> Result<(), String> {
+    let path_obj = std::path::Path::new(&path);
+    let dir = path_obj.parent().unwrap_or(path_obj);
+    tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|e| e.to_string())
 }
 
 // ── Tauri app setup ───────────────────────────────────────────────────────────
@@ -745,8 +1065,11 @@ pub fn run() {
             get_preferred_owners,
             set_preferred_owners,
             validate_hf_owner,
+            get_ms_known_owners,
             search_hf_models,
             get_hf_repo_files,
+            search_ms_models,
+            get_ms_repo_files,
             download_model,
             delete_model,
             cancel_download,
@@ -769,6 +1092,8 @@ pub fn run() {
             toggle_favorite_model,
             set_selected_model,
             set_wizard_completed,
+            open_url,
+            open_model_dir,
             // Server config presets
             list_server_presets,
             save_server_preset,

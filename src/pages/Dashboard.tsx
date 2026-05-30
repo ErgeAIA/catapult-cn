@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Eye,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type {
   SystemInfo,
   RuntimeInfo,
@@ -36,6 +37,7 @@ function StatusDot({ ok }: { ok: boolean }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
@@ -149,7 +151,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
-        Loading system info…
+        {t('common.loading')}
       </div>
     );
   }
@@ -159,13 +161,13 @@ export default function Dashboard() {
     ? totalVram + (system?.available_ram_mb ?? 0)
     : system?.available_ram_mb ?? 0;
 
-  const sizeAdvice = (() => {
+  const sizeAdviceKey = (() => {
     const gb = totalUsable / 1024;
-    if (gb >= 40) return "70B+ models (Q4_K_M)";
-    if (gb >= 16) return "13B–30B models (Q4_K_M)";
-    if (gb >= 8) return "7B–13B models (Q4_K_M)";
-    if (gb >= 4) return "3B–7B models (Q4_K_M)";
-    return "1B–3B models (Q4_K_M)";
+    if (gb >= 40) return "dashboard.sizeAdvice.70B+";
+    if (gb >= 16) return "dashboard.sizeAdvice.13B-30B";
+    if (gb >= 8) return "dashboard.sizeAdvice.7B-13B";
+    if (gb >= 4) return "dashboard.sizeAdvice.3B-7B";
+    return "dashboard.sizeAdvice.1B-3B";
   })();
 
   const favorites = appConfig?.favorite_models ?? [];
@@ -190,7 +192,7 @@ export default function Dashboard() {
             <Cpu size={16} className="text-accent-blue" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-gray-500 mb-0.5">CPU</p>
+            <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.cpu')}</p>
             <p className="text-sm font-medium text-gray-200 truncate">
               {shortCpuName(system?.cpu_name ?? "Unknown")}
             </p>
@@ -205,7 +207,7 @@ export default function Dashboard() {
             <MemoryStick size={16} className="text-accent-cyan" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">RAM</p>
+            <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.ram')}</p>
             <p className="text-sm font-medium text-gray-200">
               {mbToGb(system?.total_ram_mb ?? 0)} total
             </p>
@@ -220,28 +222,28 @@ export default function Dashboard() {
             <Monitor size={16} className="text-primary-light" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-gray-500 mb-0.5">GPU</p>
+            <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.gpu')}</p>
             {system?.gpus && system.gpus.length > 0 ? (
               <>
                 <p className="text-sm font-medium text-gray-200 truncate">
                   {shortGpuName(system.gpus[0].name)}
                 </p>
                 {system.gpus.length > 1 && (
-                  <p className="text-xs text-gray-400 truncate">
-                    {shortGpuName(system.gpus[1].name)}
-                    {system.gpus.length > 2 && (
-                      <span className="text-gray-500">
-                        {" "}+{system.gpus.length - 2} more
-                      </span>
-                    )}
+                    <p className="text-xs text-gray-400 truncate">
+                      {shortGpuName(system.gpus[1].name)}
+                      {system.gpus.length > 2 && (
+                        <span className="text-gray-500">
+                          {" "}{t('dashboard.moreGpus', { count: system.gpus.length - 2 })}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    {totalVram > 0 ? `${mbToGb(totalVram)} ${t('dashboard.vram')}` : t('dashboard.sharedMemory')}
                   </p>
-                )}
-                <p className="text-xs text-gray-500">
-                  {totalVram > 0 ? mbToGb(totalVram) + " VRAM" : "shared memory"}
-                </p>
               </>
             ) : (
-              <p className="text-sm text-gray-500">No GPU detected</p>
+              <p className="text-sm text-gray-500">{t('dashboard.noGpu')}</p>
             )}
           </div>
         </div>
@@ -251,11 +253,11 @@ export default function Dashboard() {
             <Zap size={16} className="text-accent-green" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">Best Backend</p>
+            <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.backend')}</p>
             <p className="text-sm font-medium text-gray-200 uppercase">
               {system?.recommended_backend ?? "CPU"}
             </p>
-            <p className="text-xs text-gray-500">{sizeAdvice}</p>
+            <p className="text-xs text-gray-500">{t(sizeAdviceKey)}</p>
           </div>
         </div>
       </div>
@@ -268,7 +270,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
                 <span className="text-sm text-gray-200">
-                  Server {serverStatus.type === "starting" ? "starting…" : "running"}
+                  {serverStatus.type === "starting" ? t('dashboard.serverStarting') : t('dashboard.serverRunning')}
                 </span>
                 {serverStatus.type === "running" && (
                   <span className="text-xs text-gray-500 font-mono">
@@ -287,12 +289,12 @@ export default function Dashboard() {
                   )}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {selectedModel ? "Selected model" : "First available model"}
+                  {selectedModel ? t('dashboard.quickLaunch.selected') : t('dashboard.quickLaunch.first')}
                 </p>
               </div>
             ) : (
               <p className="text-sm text-gray-500">
-                No models installed
+                {t('dashboard.noModels')}
               </p>
             )}
           </div>
@@ -304,7 +306,7 @@ export default function Dashboard() {
                     className="btn-secondary text-xs"
                     onClick={() => navigate("/chat")}
                   >
-                    Chat
+                    {t('nav.chat')}
                   </button>
                 )}
                 <button
@@ -313,7 +315,7 @@ export default function Dashboard() {
                   disabled={stopping}
                 >
                   <Square size={13} />
-                  Stop
+                  {t('dashboard.quickLaunch.stop')}
                 </button>
               </>
             ) : (
@@ -323,7 +325,7 @@ export default function Dashboard() {
                 disabled={!launchModel || !runtime?.installed || launching}
               >
                 <Play size={13} />
-                {launching ? "Starting…" : "Run"}
+                {launching ? t('dashboard.quickLaunch.starting') : t('dashboard.quickLaunch.run')}
               </button>
             )}
           </div>
@@ -340,7 +342,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <StatusDot ok={runtime?.installed ?? false} />
               <span className="text-sm font-medium text-gray-300">
-                Runtime
+                {t('nav.runtime')}
               </span>
             </div>
             <ChevronRight
@@ -352,9 +354,9 @@ export default function Dashboard() {
             <>
               <p className="text-xs text-gray-400">
                 {runtime.runtime_type === "managed" ? (
-                  <>Build <span className="text-gray-200 font-mono">b{runtime.build}</span></>
+                  <>{t('dashboard.build')} <span className="text-gray-200 font-mono">b{runtime.build}</span></>
                 ) : (
-                  <span className="text-gray-200">Custom</span>
+                  <span className="text-gray-200">{t('dashboard.custom')}</span>
                 )}
               </p>
               <p className="text-xs text-gray-500 mt-0.5 uppercase">
@@ -362,14 +364,14 @@ export default function Dashboard() {
               </p>
               {runtime.runtime_type === "managed" && appConfig?.latest_known_build &&
                 runtime.build && appConfig.latest_known_build > runtime.build && (
-                <p className="text-xs text-accent-yellow mt-1">
-                  Update: b{appConfig.latest_known_build}
-                </p>
-              )}
+                  <p className="text-xs text-accent-yellow mt-1">
+                    {t('runtime.updateAvailable', { version: `b${appConfig.latest_known_build}` })}
+                  </p>
+                )}
             </>
           ) : (
             <p className="text-sm text-accent-yellow">
-              Not installed — click to download
+              {t('dashboard.noRuntime')}
             </p>
           )}
         </button>
@@ -381,7 +383,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <StatusDot ok={models.length > 0} />
-              <span className="text-sm font-medium text-gray-300">Models</span>
+              <span className="text-sm font-medium text-gray-300">{t('nav.models')}</span>
             </div>
             <ChevronRight
               size={14}
@@ -390,11 +392,11 @@ export default function Dashboard() {
           </div>
           <p className="text-xs text-gray-400">
             <span className="text-gray-200 font-medium">{models.length}</span>{" "}
-            model{models.length !== 1 ? "s" : ""} installed
+            {t('dashboard.modelsInstalled', { count: models.length })}
           </p>
           {models.length === 0 && (
             <p className="text-xs text-accent-yellow mt-0.5">
-              Download a model to get started
+              {t('dashboard.downloadModel')}
             </p>
           )}
         </button>
@@ -406,7 +408,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <StatusDot ok={serverStatus.type === "running"} />
-              <span className="text-sm font-medium text-gray-300">Server</span>
+              <span className="text-sm font-medium text-gray-300">{t('dashboard.server')}</span>
             </div>
             <ChevronRight
               size={14}
@@ -415,19 +417,19 @@ export default function Dashboard() {
           </div>
           {serverStatus.type === "running" ? (
             <>
-              <p className="text-xs text-accent-green">Running</p>
+              <p className="text-xs text-accent-green">{t('dashboard.serverRunning')}</p>
               <p className="text-xs text-gray-500 font-mono mt-0.5">
                 http://127.0.0.1:{serverStatus.port}
               </p>
             </>
           ) : serverStatus.type === "starting" ? (
-            <p className="text-xs text-accent-yellow">Starting…</p>
+            <p className="text-xs text-accent-yellow">{t('dashboard.serverStarting')}</p>
           ) : serverStatus.type === "error" ? (
             <p className="text-xs text-accent-red truncate">
               {serverStatus.message}
             </p>
           ) : (
-            <p className="text-xs text-gray-500">Not running</p>
+            <p className="text-xs text-gray-500">{t('dashboard.serverStatus')}</p>
           )}
         </button>
       </div>
@@ -439,7 +441,7 @@ export default function Dashboard() {
             <AlertCircle size={18} className="text-accent-yellow shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-gray-200 mb-1">
-                Getting started
+                {t('dashboard.gettingStarted')}
               </p>
               <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
                 {!runtime?.installed && (
@@ -448,9 +450,9 @@ export default function Dashboard() {
                       className="text-primary-light hover:underline"
                       onClick={() => navigate("/runtime")}
                     >
-                      Download the runtime
+                      {t('dashboard.step1')}
                     </button>{" "}
-                    for your hardware
+                    {t('dashboard.forYourHardware')}
                   </li>
                 )}
                 {models.length === 0 && (
@@ -459,9 +461,9 @@ export default function Dashboard() {
                       className="text-primary-light hover:underline"
                       onClick={() => navigate("/models")}
                     >
-                      Download a model
+                      {t('dashboard.step2')}
                     </button>{" "}
-                    (a 7B Q4_K_M is a good start)
+                    {t('dashboard.goodStart')}
                   </li>
                 )}
                 <li>
@@ -469,9 +471,9 @@ export default function Dashboard() {
                     className="text-primary-light hover:underline"
                     onClick={() => navigate("/server")}
                   >
-                    Launch the server
+                    {t('dashboard.step3')}
                   </button>{" "}
-                  and start chatting
+                  {t('dashboard.andStartChatting')}
                 </li>
               </ol>
             </div>
@@ -483,7 +485,7 @@ export default function Dashboard() {
       {favoriteModels.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-gray-300 mb-3">
-            Favorite Models
+            {t('dashboard.favoriteModels')}
           </h2>
           <div className="space-y-1">
             {favoriteModels.map((m) => {
@@ -504,7 +506,7 @@ export default function Dashboard() {
                   <button
                     className="shrink-0"
                     onClick={() => toggleFavorite(m.id)}
-                    title={isFav ? "Remove from favorites" : "Add to favorites"}
+                    title={isFav ? t('dashboard.removeFromFavorites') : t('dashboard.addToFavorites')}
                   >
                     <Star
                       size={14}
@@ -522,7 +524,7 @@ export default function Dashboard() {
                     {m.name}
                   </span>
                   {m.is_vision && (
-                    <span title="Vision model">
+                    <span title={t('dashboard.visionModel')}>
                       <Eye size={12} className="text-accent-blue shrink-0" />
                     </span>
                   )}
@@ -538,7 +540,7 @@ export default function Dashboard() {
                   <button
                     className="shrink-0"
                     onClick={() => selectForServer(m.path)}
-                    title={isSelected ? "Selected for server" : "Use for server"}
+                    title={isSelected ? t('dashboard.selectedForServer') : t('dashboard.useForServer')}
                   >
                     <CheckCircle
                       size={14}
@@ -557,20 +559,20 @@ export default function Dashboard() {
                         className="text-xs text-accent-red hover:underline"
                         onClick={() => deleteModel(m.path)}
                       >
-                        Confirm
+                        {t('common.confirm')}
                       </button>
                       <button
                         className="text-xs text-gray-500 hover:underline"
                         onClick={() => setConfirmDelete(null)}
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   ) : (
                     <button
                       className="shrink-0"
                       onClick={() => setConfirmDelete(m.id)}
-                      title="Delete model"
+                      title={t('dashboard.deleteModel')}
                     >
                       <Trash2
                         size={14}

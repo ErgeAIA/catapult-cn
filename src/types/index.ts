@@ -116,6 +116,7 @@ export interface RecommendedModel {
   estimated_size_mb: number;
   installed: boolean;
   installed_path: string | null;
+  ms_model_id: string | null;
 }
 
 export interface HfModel {
@@ -139,6 +140,33 @@ export interface HfFile {
 }
 
 export interface HfFilePart {
+  filename: string;
+  size_bytes: number;
+  download_url: string;
+}
+
+// ── ModelScope ───────────────────────────────────────────────────────────────
+
+export interface MsModel {
+  model_id: string;
+  name: string;
+  author: string;
+  files: MsFile[];
+  downloads: number;
+  likes: number;
+}
+
+export interface MsFile {
+  filename: string;
+  size_bytes: number;
+  quant: string | null;
+  download_url: string;
+  is_split: boolean;
+  split_parts: MsFilePart[];
+  is_mmproj: boolean;
+}
+
+export interface MsFilePart {
   filename: string;
   size_bytes: number;
   download_url: string;

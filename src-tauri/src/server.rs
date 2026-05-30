@@ -6,8 +6,11 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
+#[cfg(target_os = "windows")]
+#[allow(unused_imports)]
+use std::os::windows::process::CommandExt;
 
-use crate::hardware::{suggest_config, SystemInfo};
+use crate::hardware::{SystemInfo, suggest_config};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
@@ -109,7 +112,10 @@ impl ServerState {
     }
 
     pub fn is_running(&self) -> bool {
-        matches!(self.status, ServerStatus::Running { .. } | ServerStatus::Starting)
+        matches!(
+            self.status,
+            ServerStatus::Running { .. } | ServerStatus::Starting
+        )
     }
 }
 
@@ -121,18 +127,37 @@ pub fn new_server_state() -> SharedServerState {
 
 /// Apply `HfPresetParams` fields to an existing `ServerConfig`.
 /// Only overwrites fields that are present in the preset.
-pub fn apply_hf_preset_params(params: &crate::huggingface::HfPresetParams, config: &mut ServerConfig) {
-    if let Some(v) = params.temperature { config.temperature = v; }
-    if let Some(v) = params.top_k { config.top_k = v; }
-    if let Some(v) = params.top_p { config.top_p = v; }
-    if let Some(v) = params.min_p { config.min_p = v; }
-    if let Some(v) = params.n_predict { config.n_predict = v; }
-    if let Some(v) = params.seed { config.seed = Some(v); }
+pub fn apply_hf_preset_params(
+    params: &crate::huggingface::HfPresetParams,
+    config: &mut ServerConfig,
+) {
+    if let Some(v) = params.temperature {
+        config.temperature = v;
+    }
+    if let Some(v) = params.top_k {
+        config.top_k = v;
+    }
+    if let Some(v) = params.top_p {
+        config.top_p = v;
+    }
+    if let Some(v) = params.min_p {
+        config.min_p = v;
+    }
+    if let Some(v) = params.n_predict {
+        config.n_predict = v;
+    }
+    if let Some(v) = params.seed {
+        config.seed = Some(v);
+    }
     if let Some(v) = params.repeat_penalty {
-        config.extra_params.insert("repeat-penalty".to_string(), format!("{:.4}", v));
+        config
+            .extra_params
+            .insert("repeat-penalty".to_string(), format!("{:.4}", v));
     }
     if let Some(v) = params.repeat_last_n {
-        config.extra_params.insert("repeat-last-n".to_string(), v.to_string());
+        config
+            .extra_params
+            .insert("repeat-last-n".to_string(), v.to_string());
     }
 }
 
@@ -224,11 +249,9 @@ pub async fn start_server(
         .kill_on_drop(true);
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
-    let mut child = cmd.spawn()
-        .context("Failed to spawn llama-server")?;
+    let mut child = cmd.spawn().context("Failed to spawn llama-server")?;
 
     let pid = child.id().unwrap_or(0);
     let port = config.port;
@@ -345,7 +368,9 @@ pub async fn start_server(
                     } else {
                         let msg = format!("Server exited with code {}", status);
                         s.log_lines.push(format!("[error] {}", msg));
-                        s.status = ServerStatus::Error { message: msg.clone() };
+                        s.status = ServerStatus::Error {
+                            message: msg.clone(),
+                        };
                         drop(s);
                         log_cb_exit(format!("[error] {}", msg));
                     }
@@ -357,7 +382,9 @@ pub async fn start_server(
                     s.process = None;
                     let msg = format!("Server process error: {}", e);
                     s.log_lines.push(format!("[error] {}", msg));
-                    s.status = ServerStatus::Error { message: msg.clone() };
+                    s.status = ServerStatus::Error {
+                        message: msg.clone(),
+                    };
                     drop(s);
                     log_cb_exit(format!("[error] {}", msg));
                     break;
@@ -393,12 +420,7 @@ pub async fn stop_server(state: &SharedServerState) -> Result<()> {
         }
 
         // Wait up to 30 seconds for graceful shutdown
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            child.wait(),
-        )
-        .await
-        {
+        match tokio::time::timeout(std::time::Duration::from_secs(30), child.wait()).await {
             Ok(Ok(status)) => {
                 log::info!("Server exited: {}", status);
             }
@@ -458,6 +480,33 @@ pub fn kill_server_sync(state: &SharedServerState) {
         let _ = child.try_wait();
         log::warn!("Force-killed server on shutdown");
     }
+}
+
+/// Validate a parameter key to prevent injection attacks
+fn is_valid_param_key(key: &str) -> bool {
+    if key.is_empty() || key.starts_with('-') {
+        return false;
+    }
+    key.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Validate a parameter value to prevent injection attacks
+fn sanitize_param_value(value: &str) -> String {
+    // Remove any characters that could be used for injection
+    value
+        .chars()
+        .filter(|c| {
+            c.is_ascii_alphanumeric()
+                || *c == '/'
+                || *c == '\\'
+                || *c == '.'
+                || *c == '_'
+                || *c == '-'
+                || *c == ' '
+                || *c == ':'
+        })
+        .collect()
 }
 
 pub fn build_args(config: &ServerConfig) -> Vec<String> {
@@ -564,22 +613,28 @@ pub fn build_args(config: &ServerConfig) -> Vec<String> {
     args.push("--parallel".to_string());
     args.push(config.parallel.to_string());
 
-    // Extra parameters from the UI
-    let mut sorted_params: Vec<_> = config.extra_params.iter()
-        .filter(|(k, _)| k.as_str() != "__raw__" && k.as_str() != "mmproj")
+    // Extra parameters from the UI - with validation
+    let mut sorted_params: Vec<_> = config
+        .extra_params
+        .iter()
+        .filter(|(k, _)| k.as_str() != "__raw__" && k.as_str() != "mmproj" && is_valid_param_key(k))
         .collect();
     sorted_params.sort_by_key(|(k, _)| (*k).clone());
     for (key, value) in sorted_params {
         args.push(format!("--{}", key));
         if !value.is_empty() {
-            args.push(value.clone());
+            args.push(sanitize_param_value(value));
         }
     }
 
-    // Raw extra arguments (free-form text from the UI)
+    // Raw extra arguments (free-form text from the UI) - with validation
     if let Some(raw) = config.extra_params.get("__raw__") {
         for part in raw.split_whitespace() {
-            args.push(part.to_string());
+            // Only allow safe arguments that look like flags or numbers
+            if part.starts_with("--") || part.parse::<f64>().is_ok() || part.parse::<i64>().is_ok()
+            {
+                args.push(part.to_string());
+            }
         }
     }
 
@@ -659,7 +714,10 @@ mod tests {
         let mut extra = HashMap::new();
         extra.insert("api-key".to_string(), "secret".to_string());
         extra.insert("metrics".to_string(), String::new()); // boolean flag
-        extra.insert("__raw__".to_string(), "--verbose --log-timestamps".to_string());
+        extra.insert(
+            "__raw__".to_string(),
+            "--verbose --log-timestamps".to_string(),
+        );
 
         let config = ServerConfig {
             model_path: "/m.gguf".to_string(),
@@ -800,10 +858,14 @@ mod tests {
         let mut cfg = ServerConfig::default();
         apply_hf_preset_params(&make_hf_params(), &mut cfg);
 
-        assert!(cfg.extra_params.contains_key("repeat-penalty"),
-            "repeat_penalty should be stored in extra_params");
-        assert!(cfg.extra_params.contains_key("repeat-last-n"),
-            "repeat_last_n should be stored in extra_params");
+        assert!(
+            cfg.extra_params.contains_key("repeat-penalty"),
+            "repeat_penalty should be stored in extra_params"
+        );
+        assert!(
+            cfg.extra_params.contains_key("repeat-last-n"),
+            "repeat_last_n should be stored in extra_params"
+        );
         let rp: f32 = cfg.extra_params["repeat-penalty"].parse().unwrap();
         assert!((rp - 1.15).abs() < 1e-3);
         assert_eq!(cfg.extra_params["repeat-last-n"], "64");
@@ -841,7 +903,10 @@ mod tests {
 
     #[test]
     fn preset_name_from_repo_replaces_slash() {
-        assert_eq!(preset_name_from_repo("unsloth/Qwen3.5-4B-GGUF"), "unsloth__Qwen3.5-4B-GGUF");
+        assert_eq!(
+            preset_name_from_repo("unsloth/Qwen3.5-4B-GGUF"),
+            "unsloth__Qwen3.5-4B-GGUF"
+        );
     }
 
     #[test]

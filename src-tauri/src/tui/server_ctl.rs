@@ -21,11 +21,11 @@ pub enum ServerOrigin {
 }
 
 fn pid_file_path() -> Option<PathBuf> {
-    dirs::data_dir().map(|d| d.join("catapult").join("server.pid"))
+    dirs::config_dir().map(|d| d.join("catapult").join("server.pid"))
 }
 
 pub fn log_file_path() -> Option<PathBuf> {
-    dirs::data_dir().map(|d| d.join("catapult").join("server.log"))
+    dirs::config_dir().map(|d| d.join("catapult").join("server.log"))
 }
 
 pub fn detect_server(config: &AppConfig) -> Option<DetectedServer> {

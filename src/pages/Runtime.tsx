@@ -16,6 +16,7 @@ import {
   Play,
   Archive,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type {
   RuntimeInfo,
   ReleaseInfo,
@@ -33,6 +34,7 @@ function mbToStr(mb: number): string {
 }
 
 export default function Runtime() {
+  const { t } = useTranslation();
   const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [release, setRelease] = useState<ReleaseInfo | null>(null);
@@ -121,7 +123,7 @@ export default function Runtime() {
     }
     const asset = rel.available_assets[0]?.name;
     if (!asset) {
-      setError("No compatible assets found for this platform");
+      setError(t('runtime.noCompatibleAssets'));
       return;
     }
     setUpdating(true);
@@ -143,14 +145,14 @@ export default function Runtime() {
   };
 
   const browseCustom = async () => {
-    const selected = await open({ directory: true, title: "Select llama.cpp directory" });
+    const selected = await open({ directory: true, title: t('runtime.selectDirectory') });
     if (!selected) return;
     flushSync(() => { setScanning(true); setError(null); });
     try {
       const result = await invoke<ScanResult>("scan_custom_runtime", { path: selected });
       if (result.builds.length === 0) {
         setCustomBuilds(null);
-        setError("No llama-server binary found in the selected directory.");
+        setError(t('wizard.noBuildFound'));
       } else if (result.is_source_distribution) {
         // llama.cpp source tree: add all builds as custom runtimes
         await invoke("add_all_custom_runtime_binaries", {
@@ -253,9 +255,9 @@ export default function Runtime() {
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Runtime</h1>
+        <h1 className="text-2xl font-bold text-gray-100">{t('runtime.title')}</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Manage llama.cpp inference engine versions
+          {t('runtime.desc')}
         </p>
       </div>
 
@@ -269,23 +271,23 @@ export default function Runtime() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="card flex items-center gap-3 px-6 py-4">
             <RefreshCw size={16} className="text-primary animate-spin" />
-            <span className="text-sm text-gray-200">Searching for server runtimes…</span>
+            <span className="text-sm text-gray-200">{t('runtime.searchingRuntimes')}</span>
           </div>
         </div>
       )}
 
       {/* ── Active Runtime ── */}
       <div className="card">
-        <h2 className="section-title">Active Runtime</h2>
+        <h2 className="section-title">{t('runtime.activeRuntime')}</h2>
         {runtime?.installed ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle size={14} className="text-accent-green" />
               <span className="text-sm text-gray-200">
                 {runtime.runtime_type === "managed" ? (
-                  <>Build <span className="font-mono">b{runtime.build}</span></>
+                  <>{t('runtime.build')} <span className="font-mono">b{runtime.build}</span></>
                 ) : (
-                  "Custom"
+                  t('runtime.custom')
                 )}
                 {runtime.backend && (
                   <span className="uppercase text-xs text-primary-light font-medium ml-2">
@@ -304,10 +306,10 @@ export default function Runtime() {
               <div className="flex items-center gap-2 mt-2 px-3 py-2 border border-accent-yellow/30 bg-accent-yellow/5">
                 <Package size={13} className="text-accent-yellow" />
                 <span className="text-xs text-accent-yellow">
-                  Update available: <span className="font-mono">b{latestBuild}</span>
+                  {t('runtime.updateAvailable', { version: `b${latestBuild}` })}
                 </span>
                 <button className="btn-primary text-xs ml-auto" onClick={startUpdate}>
-                  <Download size={12} /> Update
+                  <Download size={12} /> {t('runtime.update')}
                 </button>
               </div>
             )}
@@ -315,7 +317,7 @@ export default function Runtime() {
               <div className="mt-2 px-3 py-2 border border-primary/30 bg-primary/5">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-gray-300">
-                    {updateProgress?.status === "extracting" ? "Extracting…" : "Updating…"}
+                    {updateProgress?.status === "extracting" ? t('runtime.extracting') : t('runtime.updating')}
                   </span>
                   <span className="text-xs font-mono text-gray-400">{(updateProgress?.percent ?? 0).toFixed(1)}%</span>
                 </div>
@@ -327,13 +329,13 @@ export default function Runtime() {
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">No runtime configured</p>
+            <p className="text-sm text-gray-500">{t('runtime.noRuntime')}</p>
             <div className="flex gap-2">
               <button className="btn-primary text-xs" onClick={() => setShowReleases(true)}>
-                <Download size={12} /> Download
+                <Download size={12} /> {t('runtime.download')}
               </button>
               <button className="btn-ghost text-xs" onClick={browseCustom}>
-                <FolderOpen size={12} /> Custom
+                <FolderOpen size={12} /> {t('runtime.custom')}
               </button>
             </div>
           </div>
@@ -345,10 +347,10 @@ export default function Runtime() {
         <div className="card">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="section-title">Multiple builds found</h2>
-              <p className="section-desc">Select which llama-server build to use:</p>
+              <h2 className="section-title">{t('runtime.multipleBuilds')}</h2>
+              <p className="section-desc">{t('runtime.selectBuild')}</p>
             </div>
-            <button className="btn-ghost text-xs" onClick={() => setCustomBuilds(null)}>Dismiss</button>
+            <button className="btn-ghost text-xs" onClick={() => setCustomBuilds(null)}>{t('runtime.dismiss')}</button>
           </div>
           <div className="space-y-1.5">
             {customBuilds.map((b) => (
@@ -366,24 +368,24 @@ export default function Runtime() {
       {/* ── Managed Runtimes ── */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="section-title mb-0">Managed Runtimes</h2>
+          <h2 className="section-title mb-0">{t('runtime.managedRuntimes')}</h2>
           <div className="flex items-center gap-2">
             {managed.length > 0 && (
               <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
                 <input type="checkbox" checked={appConfig?.auto_delete_old_runtimes ?? false}
                   onChange={(e) => toggleAutoDelete(e.target.checked)}
                   className="accent-primary" />
-                Auto-delete old
+                {t('runtime.autoDelete')}
               </label>
             )}
             <button className="btn-secondary text-xs" onClick={() => setShowReleases(true)}>
-              <Download size={12} /> {managed.length > 0 ? "New version" : "Download"}
+              <Download size={12} /> {managed.length > 0 ? t('runtime.newVersion') : t('runtime.download')}
             </button>
           </div>
         </div>
 
         {managed.length === 0 ? (
-          <p className="text-sm text-gray-500">No managed runtimes installed. Download one from GitHub releases.</p>
+          <p className="text-sm text-gray-500">{t('runtime.noManaged')}</p>
         ) : (
           <>
             {/* Current managed runtimes */}
@@ -399,18 +401,18 @@ export default function Runtime() {
                     <span className={`text-sm font-mono ${isActive ? "text-gray-200" : "text-gray-400"}`}>b{r.build}</span>
                     <span className={`text-xs uppercase ${isActive ? "text-primary-light" : "text-gray-500"}`}>{r.backend_label}</span>
                     {isActive ? (
-                      <span className="badge-purple text-[10px] ml-auto">Active</span>
+                      <span className="badge-purple text-[10px] ml-auto">{t('runtime.active')}</span>
                     ) : (
                       <>
                         <span className="text-xs text-gray-600 ml-auto">
                           {new Date(r.installed_at * 1000).toLocaleDateString()}
                         </span>
                         <button className="btn-ghost text-xs py-0.5 px-1.5"
-                          onClick={() => activateManaged(r.build, r.backend_id)} title="Activate">
+                          onClick={() => activateManaged(r.build, r.backend_id)} title={t('runtime.activate')}>
                           <Play size={11} />
                         </button>
                         <button className="text-gray-600 hover:text-accent-red"
-                          onClick={() => deleteManaged(r.build, r.backend_id)} title="Delete">
+                          onClick={() => deleteManaged(r.build, r.backend_id)} title={t('runtime.delete')}>
                           <Trash2 size={12} />
                         </button>
                       </>
@@ -426,7 +428,7 @@ export default function Runtime() {
                 <button className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 mt-2"
                   onClick={() => setShowArchived(!showArchived)}>
                   <Archive size={12} />
-                  {showArchived ? "Hide" : "Show"} {archivedMr.length} archived
+                  {showArchived ? t('runtime.hide') : t('runtime.show')} {archivedMr.length} {t('runtime.archived')}
                   {showArchived ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                 </button>
                 {showArchived && (
@@ -440,11 +442,11 @@ export default function Runtime() {
                           {new Date(r.installed_at * 1000).toLocaleDateString()}
                         </span>
                         <button className="btn-ghost text-xs py-0.5 px-1.5"
-                          onClick={() => activateManaged(r.build, r.backend_id)} title="Activate">
+                          onClick={() => activateManaged(r.build, r.backend_id)} title={t('runtime.activate')}>
                           <Play size={11} />
                         </button>
                         <button className="text-gray-600 hover:text-accent-red"
-                          onClick={() => deleteManaged(r.build, r.backend_id)} title="Delete">
+                          onClick={() => deleteManaged(r.build, r.backend_id)} title={t('runtime.delete')}>
                           <Trash2 size={12} />
                         </button>
                       </div>
@@ -460,13 +462,13 @@ export default function Runtime() {
       {/* ── Custom Runtimes ── */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="section-title mb-0">Custom Runtimes</h2>
+          <h2 className="section-title mb-0">{t('runtime.customRuntimes')}</h2>
           <button className="btn-ghost text-xs" onClick={browseCustom}>
-            <FolderOpen size={12} /> Add
+            <FolderOpen size={12} /> {t('runtime.addCustom')}
           </button>
         </div>
         {custom.length === 0 ? (
-          <p className="text-sm text-gray-500">No custom runtimes. Point to a local llama.cpp installation.</p>
+          <p className="text-sm text-gray-500">{t('runtime.noCustom')}</p>
         ) : (
           <div className="space-y-1.5">
             {custom.map((c, i) => {
@@ -479,7 +481,7 @@ export default function Runtime() {
                   <span className="text-sm text-gray-200">{c.label}</span>
                   <span className="text-xs text-gray-500 font-mono truncate flex-1">{c.binary_path}</span>
                   {isActive ? (
-                    <span className="badge-purple text-[10px]">Active</span>
+                    <span className="badge-purple text-[10px]">{t('runtime.active')}</span>
                   ) : (
                     <>
                       <button className="btn-ghost text-xs py-0.5 px-1.5" onClick={() => activateCustom(i)}>
@@ -499,8 +501,8 @@ export default function Runtime() {
 
       {/* ── Available Backends ── */}
       <div className="card">
-        <h2 className="section-title">Available Backends</h2>
-        <p className="section-desc">Backends detected on this system.</p>
+        <h2 className="section-title">{t('runtime.availableBackends')}</h2>
+        <p className="section-desc">{t('runtime.backendDesc')}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {backends.map((b) => (
             <div key={b.id}
@@ -521,13 +523,13 @@ export default function Runtime() {
       {showReleases && (
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="section-title mb-0">Download Runtime</h2>
+            <h2 className="section-title mb-0">{t('runtime.downloadRuntime')}</h2>
             <div className="flex gap-2">
               <button className="btn-secondary text-xs" onClick={checkUpdate} disabled={checking}>
                 <RefreshCw size={13} className={checking ? "animate-spin" : ""} />
-                Refresh
+                {t('runtime.refresh')}
               </button>
-              <button className="btn-ghost text-xs" onClick={() => setShowReleases(false)}>Close</button>
+              <button className="btn-ghost text-xs" onClick={() => setShowReleases(false)}>{t('runtime.close')}</button>
             </div>
           </div>
 
@@ -536,7 +538,7 @@ export default function Runtime() {
               <div className="flex items-center gap-3 mb-4">
                 <Package size={14} className="text-gray-400" />
                 <span className="text-sm text-gray-300">
-                  Latest: <span className="font-mono text-gray-100">{release.tag_name}</span>
+                  {t('runtime.latest')} <span className="font-mono text-gray-100">{release.tag_name}</span>
                 </span>
                 <span className="text-xs text-gray-600 ml-auto">
                   {new Date(release.published_at).toLocaleDateString()}
@@ -555,8 +557,8 @@ export default function Runtime() {
                 <button className="btn-ghost text-xs mt-2 w-full justify-center"
                   onClick={() => setShowAll(!showAll)}>
                   {showAll
-                    ? <><ChevronUp size={13} /> Show fewer</>
-                    : <><ChevronDown size={13} /> Show all {release.available_assets.length} assets</>}
+                    ? <><ChevronUp size={13} /> {t('runtime.showFewer')}</>
+                    : <><ChevronDown size={13} /> {t('runtime.showAll', { count: release.available_assets.length })}</>}
                 </button>
               )}
 
@@ -566,13 +568,13 @@ export default function Runtime() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-300">
-                          {progress?.status === "extracting" ? "Extracting…" : "Downloading…"}
+                          {progress?.status === "extracting" ? t('runtime.extracting') : t('runtime.downloading')}
                         </span>
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-mono text-gray-400">{(progress?.percent ?? 0).toFixed(1)}%</span>
                           {progress?.status !== "extracting" && (
                             <button className="btn-ghost text-xs text-accent-red py-0.5" onClick={cancelDownload}>
-                              Cancel
+                              {t('runtime.cancel')}
                             </button>
                           )}
                         </div>
@@ -584,16 +586,16 @@ export default function Runtime() {
                   ) : (
                     <button className="btn-primary w-full justify-center" onClick={startDownload}>
                       <Download size={15} />
-                      Download {selectedAsset}
+                      {t('runtime.download')} {selectedAsset}
                     </button>
                   )}
                 </div>
               )}
             </>
           ) : checking ? (
-            <p className="text-sm text-gray-500">Fetching releases…</p>
+            <p className="text-sm text-gray-500">{t('runtime.fetchingReleases')}</p>
           ) : (
-            <p className="text-sm text-gray-500">Click Refresh to check for available releases.</p>
+            <p className="text-sm text-gray-500">{t('runtime.checkReleases')}</p>
           )}
         </div>
       )}
@@ -604,6 +606,7 @@ export default function Runtime() {
 function AssetRow({ asset, selected, onSelect }: {
   asset: AssetOption; selected: boolean; onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       className={`w-full flex items-center gap-3 px-3 py-2.5 border text-left transition-colors ${
@@ -614,7 +617,7 @@ function AssetRow({ asset, selected, onSelect }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-gray-200 truncate">{asset.name}</span>
-          {asset.score >= 90 && <span className="badge-green text-[10px] shrink-0">Recommended</span>}
+          {asset.score >= 90 && <span className="badge-green text-[10px] shrink-0">{t('runtime.recommended')}</span>}
           {asset.score >= 60 && asset.score < 90 && (
             <span className="badge-purple text-[10px] shrink-0">{asset.backend_label}</span>
           )}

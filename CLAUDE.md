@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Catapult is a Tauri v2 desktop application (Rust backend + React/TypeScript frontend) that acts as a GUI launcher for [llama.cpp](https://github.com/ggml-org/llama.cpp). It handles runtime version management, model discovery/download, server configuration with full parameter coverage, and provides an embedded chat interface. See `ARCHITECTURE.md` for detailed technical documentation.
+Catapult is a Tauri v2 desktop application (Rust backend + React/TypeScript frontend) that acts as a GUI launcher for [llama.cpp](https://github.com/ggml-org/llama.cpp). It handles runtime version management, model discovery/download, server configuration with full parameter coverage, and provides an embedded chat interface. See `ARCHITECTURE.en.md` for detailed technical documentation.
 
 ## Commands
 

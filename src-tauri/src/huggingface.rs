@@ -35,6 +35,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen 3.5",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3.5-4B-GGUF"),
     },
     // ── Mid-range (8-16 GB VRAM sweet spot) ─────────────────
     RecommendedModelDef {
@@ -46,6 +47,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen 3.5",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3.5-9B-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/gpt-oss-20b-GGUF",
@@ -56,6 +58,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "GPT-OSS",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/gpt-oss-20b-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/Qwen3.5-35B-A3B-GGUF",
@@ -66,6 +69,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen 3.5",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3.5-35B-A3B-GGUF"),
     },
     // ── Coding ──────────────────────────────────────────────
     RecommendedModelDef {
@@ -77,6 +81,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen3 Coder",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"),
     },
     // ── Large (16-32 GB VRAM) ───────────────────────────────
     RecommendedModelDef {
@@ -88,6 +93,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen 3.5",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3.5-27B-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/gemma-3-27b-it-GGUF",
@@ -98,6 +104,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Gemma 3",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/gemma-3-27b-it-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/GLM-4.7-Flash-GGUF",
@@ -108,6 +115,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "GLM 4.7",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/GLM-4.7-Flash-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
@@ -118,6 +126,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Nemotron 3",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Nemotron-3-Nano-30B-A3B-GGUF"),
     },
     // ── Extra-large (48+ GB) ────────────────────────────────
     RecommendedModelDef {
@@ -129,6 +138,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen3 Coder",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3-Coder-Next-GGUF"),
     },
     RecommendedModelDef {
         repo_id: "unsloth/Qwen3.5-122B-A10B-GGUF",
@@ -139,6 +149,7 @@ pub const RECOMMENDED_MODELS: &[RecommendedModelDef] = &[
         family: "Qwen 3.5",
         quant: "Q4_K_M",
         context: None,
+        ms_model_id: Some("unsloth/Qwen3.5-122B-A10B-GGUF"),
     },
 ];
 
@@ -151,6 +162,8 @@ pub struct RecommendedModelDef {
     pub family: &'static str,
     pub quant: &'static str,
     pub context: Option<u32>,
+    /// Optional ModelScope model ID for the same GGUF model.
+    pub ms_model_id: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

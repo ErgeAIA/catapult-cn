@@ -1,3 +1,4 @@
 .serena/
 dist/
 node_modules/
+.trae/

@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import CatapultIcon from "../components/CatapultIcon";
 import type {
   SystemInfo,
@@ -63,22 +64,8 @@ function shortGpuName(raw: string): string {
 
 type FitLevel = "vram" | "mixed" | "tight" | "no";
 
-function modelFit(sizeMb: number, totalVram: number, totalRam: number): FitLevel {
-  const totalMem = totalVram + totalRam;
-  if (totalVram > 0 && sizeMb < totalVram * 0.85) return "vram";
-  if (sizeMb < totalMem * 0.7) return "mixed";
-  if (sizeMb < totalMem * 0.9) return "tight";
-  return "no";
-}
-
-const FIT_LABELS: Record<FitLevel, { text: string; cls: string }> = {
-  vram: { text: "Fits in VRAM", cls: "badge-green" },
-  mixed: { text: "VRAM + RAM", cls: "badge-blue" },
-  tight: { text: "Tight fit", cls: "badge-yellow" },
-  no: { text: "Too large", cls: "badge-red" },
-};
-
 export default function Wizard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
@@ -187,7 +174,7 @@ export default function Wizard() {
   const browseCustom = async () => {
     const selected = await open({
       directory: true,
-      title: "Select llama.cpp directory",
+      title: t('runtime.selectDirectory'),
     });
     if (!selected) return;
     flushSync(() => { setScanning(true); setRuntimeError(null); });
@@ -196,7 +183,7 @@ export default function Wizard() {
         path: selected,
       });
       if (result.builds.length === 0) {
-        setRuntimeError("No llama-server binary found in the selected directory.");
+        setRuntimeError(t('wizard.noBuildFound'));
       } else if (result.is_source_distribution) {
         await invoke("add_all_custom_runtime_binaries", {
           builds: result.builds,
@@ -263,7 +250,7 @@ export default function Wizard() {
         );
         const file = files.find((f) => f.filename === m.filename);
         if (!file) {
-          setModelsError((prev) => ({ ...prev, [m.filename]: "File not found in repo" }));
+          setModelsError((prev) => ({ ...prev, [m.filename]: t('wizard.fileNotFound') }));
           continue;
         }
         // Fire and forget — progress comes via events
@@ -306,8 +293,8 @@ export default function Wizard() {
           <div className="w-8 h-8 bg-primary flex items-center justify-center">
             <CatapultIcon size={16} className="text-white" />
           </div>
-          <span className="font-semibold text-gray-100 text-lg">
-            Catapult Setup
+          <span className="font-semibold text-gray-200 text-lg">
+            {t('wizard.title')}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -333,7 +320,7 @@ export default function Wizard() {
             </span>
           </div>
           <button className="btn-ghost text-xs" onClick={skip}>
-            Skip wizard
+            {t('common.skipWizard')}
           </button>
         </div>
       </div>
@@ -343,12 +330,11 @@ export default function Wizard() {
         {step === 1 ? (
           <div className="max-w-2xl mx-auto space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-100">
-                System &amp; Runtime
+              <h2 className="text-xl font-bold text-gray-200">
+                {t('wizard.step1Title')}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                We detected your hardware. Choose a llama.cpp build to download
-                or point to an existing installation.
+                {t('wizard.step1Desc')}
               </p>
             </div>
 
@@ -356,7 +342,7 @@ export default function Wizard() {
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                 <div className="card flex items-center gap-3 px-6 py-4">
                   <RefreshCw size={16} className="text-primary animate-spin" />
-                  <span className="text-sm text-gray-200">Searching for server runtimes…</span>
+                  <span className="text-sm text-gray-200">{t('wizard.searching')}</span>
                 </div>
               </div>
             )}
@@ -373,7 +359,7 @@ export default function Wizard() {
                 <div className="card flex items-center gap-2">
                   <Cpu size={14} className="text-accent-blue shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs text-gray-500">CPU</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.cpu')}</p>
                     <p className="text-xs font-medium text-gray-200 truncate">
                       {shortCpuName(system.cpu_name)}
                     </p>
@@ -382,7 +368,7 @@ export default function Wizard() {
                 <div className="card flex items-center gap-2">
                   <MemoryStick size={14} className="text-accent-cyan shrink-0" />
                   <div>
-                    <p className="text-xs text-gray-500">RAM</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.ram')}</p>
                     <p className="text-xs font-medium text-gray-200">
                       {mbToGb(system.total_ram_mb)}
                     </p>
@@ -391,18 +377,18 @@ export default function Wizard() {
                 <div className="card flex items-center gap-2">
                   <Monitor size={14} className="text-primary-light shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs text-gray-500">GPU</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.gpu')}</p>
                     <p className="text-xs font-medium text-gray-200 truncate">
                       {system.gpus.length > 0
                         ? shortGpuName(system.gpus[0].name)
-                        : "None"}
+                        : t('dashboard.noGpu')}
                     </p>
                   </div>
                 </div>
                 <div className="card flex items-center gap-2">
                   <Zap size={14} className="text-accent-green shrink-0" />
                   <div>
-                    <p className="text-xs text-gray-500">Backend</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.backend')}</p>
                     <p className="text-xs font-medium text-gray-200 uppercase">
                       {system.recommended_backend}
                     </p>
@@ -417,7 +403,7 @@ export default function Wizard() {
                 <div className="flex items-center gap-2">
                   <CheckCircle size={16} className="text-accent-green" />
                   <span className="text-sm text-gray-200">
-                    Runtime ready
+                    {t('wizard.runtimeReady')}
                   </span>
                   {runtime.backend && (
                     <span className="badge-green text-[10px] uppercase">
@@ -437,16 +423,16 @@ export default function Wizard() {
             {customBuilds && customBuilds.length > 1 && (
               <div className="card">
                 <h3 className="text-sm font-semibold text-gray-200 mb-2">
-                  Multiple builds found
+                  {t('wizard.multipleBuilds')}
                 </h3>
                 <div className="space-y-1.5">
                   {customBuilds.map((b) => (
                     <button
                       key={b.binary_path}
-                      className="w-full flex items-center gap-3 px-3 py-2 border border-border hover:border-border-strong hover:bg-surface-3 text-left transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 border border-border hover:border-border-strong hover:bg-surface-3 text-left transition-colors"
                       onClick={() => selectCustomBuild(b)}
                     >
-                      <Zap size={13} className="text-primary-light shrink-0" />
+                      <Zap size={14} className="text-primary-light shrink-0" />
                       <span className="text-xs font-mono text-gray-200 truncate">
                         {b.label}
                       </span>
@@ -462,8 +448,8 @@ export default function Wizard() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-300">
                     {runtimeProgress.status === "extracting"
-                      ? "Extracting…"
-                      : "Downloading runtime…"}
+                      ? t('wizard.extracting')
+                      : t('wizard.downloading')}
                   </span>
                   <span className="text-xs font-mono text-gray-400">
                     {runtimeProgress.percent.toFixed(1)}%
@@ -484,14 +470,14 @@ export default function Wizard() {
                 {topAssets.length > 0 && (
                   <div className="space-y-1.5">
                     {topAssets.map((asset) => (
-                      <AssetRow
-                        key={asset.name}
-                        asset={asset}
-                        selected={selectedAsset === asset.name}
-                        onSelect={() => setSelectedAsset(asset.name)}
-                      />
-                    ))}
-                  </div>
+                    <AssetRow
+                      key={asset.name}
+                      asset={asset}
+                      selected={selectedAsset === asset.name}
+                      onSelect={() => setSelectedAsset(asset.name)}
+                    />
+                  ))}
+                </div>
                 )}
                 <div className="flex items-center gap-3">
                   {selectedAsset && (
@@ -500,7 +486,7 @@ export default function Wizard() {
                       onClick={downloadRuntime}
                     >
                       <Download size={14} />
-                      Download
+                      {t('common.download')}
                     </button>
                   )}
                   <button
@@ -508,7 +494,7 @@ export default function Wizard() {
                     onClick={browseCustom}
                   >
                     <FolderOpen size={14} />
-                    Use existing installation
+                    {t('wizard.useExisting')}
                   </button>
                 </div>
               </>
@@ -518,13 +504,11 @@ export default function Wizard() {
           /* ── Step 2: Models ─────────────────────────────── */
           <div className="max-w-2xl mx-auto space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-100">
-                Choose Models
+              <h2 className="text-xl font-bold text-gray-200">
+                {t('wizard.step2Title')}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Pick up to 3 models to download. Models are sorted by fit for
-                your {totalVram > 0 ? mbToGb(totalVram) + " VRAM + " : ""}
-                {mbToGb(totalRam)} RAM.
+                {t('wizard.step2Desc', { ram: mbToGb(totalRam) })}
               </p>
             </div>
 
@@ -539,13 +523,13 @@ export default function Wizard() {
             )}
 
             <div className="text-xs text-gray-500">
-              {selectedModels.size}/3 selected
+              {t('wizard.selected', { count: selectedModels.size })}
             </div>
 
             <div className="space-y-1.5">
               {sortedModels.map((m) => {
                 const fit = modelFit(m.estimated_size_mb, totalVram, totalRam);
-                const fitInfo = FIT_LABELS[fit];
+                const fitInfo = getFitInfo(fit, t);
                 const isSelected = selectedModels.has(m.filename);
                 const isDone =
                   m.installed || modelsDone.has(m.filename);
@@ -590,12 +574,12 @@ export default function Wizard() {
                           <span className="text-sm font-medium text-gray-200">
                             {m.name}
                           </span>
-                          <span className={`text-[10px] ${fitInfo.cls}`}>
+                          <span className={fitInfo.cls}>
                             {fitInfo.text}
                           </span>
                           {isDone && (
                             <span className="badge-green text-[10px]">
-                              Installed
+                              {t('models.installed')}
                             </span>
                           )}
                         </div>
@@ -638,8 +622,7 @@ export default function Wizard() {
                 onClick={downloadSelectedModels}
               >
                 <Download size={14} />
-                Download {selectedModels.size} model
-                {selectedModels.size !== 1 ? "s" : ""}
+                {t('common.download')} {selectedModels.size} model{selectedModels.size !== 1 ? "s" : ""}
               </button>
             )}
           </div>
@@ -655,7 +638,7 @@ export default function Wizard() {
               onClick={() => setStep(step - 1)}
             >
               <ChevronLeft size={14} />
-              Back
+              {t('common.back')}
             </button>
           )}
         </div>
@@ -665,22 +648,43 @@ export default function Wizard() {
               className="btn-primary text-sm"
               onClick={() => setStep(2)}
             >
-              {runtimeDone ? "Next" : "Skip this step"}
+              {runtimeDone ? t('common.next') : t('wizard.skipStep')}
               <ChevronRight size={14} />
             </button>
           ) : (
             <button className="btn-primary text-sm" onClick={finish}>
               {allSelectedDone || downloading
-                ? "Finish"
+                ? t('common.finish')
                 : selectedModels.size === 0
-                ? "Finish without models"
-                : "Finish"}
+                ? t('wizard.finishWithoutModels')
+                : t('common.finish')}
             </button>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+function modelFit(sizeMb: number, totalVram: number, totalRam: number): FitLevel {
+  const totalMem = totalVram + totalRam;
+  if (totalVram > 0 && sizeMb < totalVram * 0.85) return "vram";
+  if (sizeMb < totalMem * 0.7) return "mixed";
+  if (sizeMb < totalMem * 0.9) return "tight";
+  return "no";
+}
+
+function getFitInfo(fit: FitLevel, t: (key: string) => string) {
+  const clsMap = {
+    vram: "badge-green text-[10px]",
+    mixed: "badge-blue text-[10px]",
+    tight: "badge-yellow text-[10px]",
+    no: "badge-red text-[10px]",
+  };
+  return {
+    cls: clsMap[fit],
+    text: t(`wizard.modelFit.${fit}`),
+  };
 }
 
 function AssetRow({
@@ -692,30 +696,19 @@ function AssetRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       className={`w-full flex items-center gap-3 px-3 py-2.5 border text-left transition-colors ${
-        selected
-          ? "border-primary/60 bg-primary/10"
-          : "border-border hover:border-border-strong hover:bg-surface-3"
+        selected ? "border-primary/60 bg-primary/10" : "border-border hover:border-border-strong hover:bg-surface-3"
       }`}
       onClick={onSelect}
     >
-      <div
-        className={`w-3 h-3 rounded-full border-2 shrink-0 ${
-          selected ? "border-primary bg-primary" : "border-gray-600"
-        }`}
-      />
+      <div className={`w-3 h-3 rounded-full border-2 shrink-0 ${selected ? "border-primary bg-primary" : "border-gray-600"}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-200 truncate">
-            {asset.name}
-          </span>
-          {asset.score >= 90 && (
-            <span className="badge-green text-[10px] shrink-0">
-              Recommended
-            </span>
-          )}
+          <span className="text-xs font-medium text-gray-200 truncate">{asset.name}</span>
+          {asset.score >= 90 && <span className="badge-green text-[10px] shrink-0">{t('wizard.recommended')}</span>}
         </div>
         <div className="flex gap-3 mt-0.5">
           <span className="text-xs text-gray-500">{asset.backend_label}</span>

@@ -18,19 +18,22 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { useTranslation } from "react-i18next";
 import CatapultIcon from "./CatapultIcon";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/runtime", label: "Runtime", icon: Download },
-  { to: "/models", label: "Models", icon: Database },
-  { to: "/server", label: "Run", icon: Play },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
+  { to: "/dashboard", key: "dashboard", icon: LayoutDashboard },
+  { to: "/runtime", key: "runtime", icon: Download },
+  { to: "/models", key: "models", icon: Database },
+  { to: "/server", key: "run", icon: Play },
+  { to: "/chat", key: "chat", icon: MessageSquare },
 ];
 
 type Update = Awaited<ReturnType<typeof check>>;
 
 function VersionInfo() {
+  const { t } = useTranslation();
   const [version, setVersion] = useState<string | null>(null);
   const [update, setUpdate] = useState<Update>(null);
   const [installing, setInstalling] = useState(false);
@@ -61,7 +64,7 @@ function VersionInfo() {
           onClick={handleUpdate}
           disabled={installing}
           className="flex items-center text-primary-light hover:text-primary transition-colors disabled:opacity-50"
-          title={installing ? "Installing update…" : `v${update.version} available — click to install & restart`}
+          title={installing ? t('common.installing') : `v${update.version} ${t('common.available')}`}
         >
           {installing
             ? <RefreshCw size={13} className="animate-spin" />
@@ -118,6 +121,7 @@ function WindowControls() {
 }
 
 export default function Layout() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const onDashboard = location.pathname === "/dashboard";
@@ -162,7 +166,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="relative z-10 flex items-center gap-0.5">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, key, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -176,13 +180,18 @@ export default function Layout() {
               }
             >
               <Icon size={13} />
-              {label}
+              {t(`nav.${key}`)}
             </NavLink>
           ))}
         </nav>
 
+        {/* Language switcher */}
+        <div className="relative z-10 ml-auto mr-2">
+          <LanguageSwitcher />
+        </div>
+
         {/* Window controls */}
-        <div className="relative z-10 ml-auto">
+        <div className="relative z-10">
           <WindowControls />
         </div>
       </div>

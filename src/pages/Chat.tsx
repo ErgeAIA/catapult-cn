@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Play, ExternalLink, RefreshCw } from "lucide-react";
 import type { ServerStatus } from "../types";
 
 export default function Chat() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<ServerStatus>({ type: "stopped" });
 
@@ -26,9 +28,9 @@ export default function Chat() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8">
         <div className="text-center">
-          <p className="text-base font-semibold text-gray-200">Server is starting…</p>
+          <p className="text-base font-semibold text-gray-200">{t("chat.serverStarting")}</p>
           <p className="text-sm text-gray-500 mt-1">
-            The model is loading. This may take a moment.
+            {t("chat.modelLoading")}
           </p>
         </div>
         <RefreshCw size={20} className="animate-spin text-gray-500" />
@@ -40,14 +42,14 @@ export default function Chat() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8">
         <div className="text-center">
-          <p className="text-base font-semibold text-gray-200">Server is not running</p>
+          <p className="text-base font-semibold text-gray-200">{t("chat.serverNotRunning")}</p>
           <p className="text-sm text-gray-500 mt-1">
-            Start the server first to use the chat.
+            {t("chat.startServerFirst")}
           </p>
         </div>
         <button className="btn-primary" onClick={() => navigate("/server")}>
           <Play size={15} />
-          Go to Run
+          {t("chat.goToRun")}
         </button>
       </div>
     );
@@ -64,14 +66,14 @@ export default function Chat() {
           onClick={() => invoke("open_chat_window", { port })}
         >
           <ExternalLink size={12} />
-          Pop out
+          {t("chat.popOut")}
         </button>
       </div>
       <iframe
         src={chatUrl}
         className="flex-1 w-full border-0"
         allow="clipboard-write"
-        title="llama.cpp Chat"
+        title={t("chat.chatTitle")}
       />
     </div>
   );
