@@ -104,3 +104,88 @@ jobs:
           gh release upload $version $file --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-to-gitee:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH key for Gitee
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.GITEE_PRIVATE_KEY }}
+
+      - name: Push to Gitee
+        run: |
+          git remote add gitee git@gitee.com:ergeaia/catapult-cn.git
+          git push gitee ${{ github.ref }} --force
+          if [[ '${{ github.ref }}' == refs/tags/* ]]; then
+            git push gitee ${{ github.ref_name }} --force
+          fi
+
+  sync-release-to-gitee:
+    needs: [build, sync-to-gitee]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Release Info
+        id: release
+        run: |
+          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          gh release view ${{ github.ref_name }} --json body,isPrerelease --jq '{body: .body, prerelease: .prerelease}' > release.json
+          cat release.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Release Assets
+        run: |
+          mkdir -p assets
+          gh release download ${{ github.ref_name }} --dir ./assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Gitee Release
+        id: gitee_release
+        run: |
+          TAG="${{ github.ref_name }}"
+          BODY=$(cat release.json | jq -r '.body')
+          PRERELEASE=$(cat release.json | jq -r '.prerelease')
+
+          RESPONSE=$(curl -s -X POST \
+            'https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases' \
+            -H 'Authorization: token ${{ secrets.GITEE_ACCESS_TOKEN }}' \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"tag_name\": \"$TAG\",
+              \"name\": \"Catapult-CN $TAG\",
+              \"body\": $(echo "$BODY" | jq -Rs .),
+              \"prerelease\": $PRERELEASE
+            }")
+
+          echo "Release Response: $RESPONSE"
+          RELEASE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
+            echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Failed to create Gitee release: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Upload Assets to Gitee
+        run: |
+          RELEASE_ID=${{ steps.gitee_release.outputs.release_id }}
+          for file in assets/*; do
+            FILENAME=$(basename "$file")
+            echo "Uploading: $FILENAME"
+            RESPONSE=$(curl -s -X POST \
+              "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attachments" \
+              -H 'Authorization: token ${{ secrets.GITEE_ACCESS_TOKEN }}' \
+              -F "file=@$file;filename=$FILENAME")
+            echo "$RESPONSE"
+          done
