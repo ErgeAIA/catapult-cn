@@ -185,7 +185,7 @@ jobs:
             FILENAME=$(basename "$file")
             echo "Uploading: $FILENAME"
             RESPONSE=$(curl -s -X POST \
-              "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attachments" \
+              "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attach_files" \
               -H 'Authorization: token ${{ secrets.GITEE_ACCESS_TOKEN }}' \
               -F "file=@$file;filename=$FILENAME")
             echo "$RESPONSE"
