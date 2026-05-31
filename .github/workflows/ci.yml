@@ -165,7 +165,8 @@ jobs:
               \"tag_name\": \"$TAG\",
               \"name\": \"Catapult-CN $TAG\",
               \"body\": $(echo "$BODY" | jq -Rs .),
-              \"prerelease\": $PRERELEASE
+              \"prerelease\": $PRERELEASE,
+              \"target_commitish\": \"master\"
             }")
 
           echo "Release Response: $RESPONSE"
