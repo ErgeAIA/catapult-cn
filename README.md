@@ -73,13 +73,13 @@
 
 ## 下载
 
-预构建的二进制文件可在 [Releases](../../releases) 页面下载。
+最新版本（v0.1.5）的预构建二进制文件，点击下表文件名即可直接下载；也可前往 [Releases](../../releases) 页面查看所有历史版本与更新说明。
 
-| 文件                              | 说明                |
-| --------------------------------- | ------------------- |
-| `Catapult-CN_0.1.5_x64-setup.exe` | NSIS 安装包（推荐） |
-| `Catapult-CN_0.1.5_x64_en-US.msi` | MSI 安装包          |
-| `Catapult-CN-v0.1.5-portable.zip` | 便携版（解压即用）  |
+| 文件                                                                                                                                                                  | 说明                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| [`Catapult-CN_0.1.5_x64-setup.exe`](https://github.com/ErgeAIA/catapult-cn/releases/download/v0.1.5/Catapult-CN_0.1.5_x64-setup.exe)                                 | NSIS 安装包（推荐） |
+| [`Catapult-CN_0.1.5_x64_en-US.msi`](https://github.com/ErgeAIA/catapult-cn/releases/download/v0.1.5/Catapult-CN_0.1.5_x64_en-US.msi)                                   | MSI 安装包          |
+| [`Catapult-CN-v0.1.5-portable.zip`](https://github.com/ErgeAIA/catapult-cn/releases/download/v0.1.5/Catapult-CN-v0.1.5-portable.zip)                                   | 便携版（解压即用）  |
 
 ***
 

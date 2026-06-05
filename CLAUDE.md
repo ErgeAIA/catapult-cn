@@ -1,3 +1,4 @@
+AGENTS.md
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -100,3 +101,4 @@ Core typed fields (model, host, port, context, GPU layers, sampling, etc.) plus 
 - The `__raw__` key in `extra_params` holds free-form CLI arguments split by whitespace.
 - GGUF metadata parsing is capped at 128 KV pairs and 1MB strings for safety.
 - Model download temp files use `__downloading__` prefix and are preserved for resume.
+- `README.md` "下载" 区块必须随每次新版本发布同步更新：表内每个文件名使用 GitHub Releases 直链 `https://github.com/ErgeAIA/catapult-cn/releases/download/{tag}/{filename}`（点击即下载），并保留指向 [Releases](../../releases) 页面的入口以便查看历史版本与更新说明。每次打 tag / 发版时必须替换表中的 tag 与文件名为当次发布对应的最新值。
