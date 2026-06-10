@@ -6,7 +6,13 @@
 
 原项目更新日志见：[English](CHANGELOG.en.md)
 
-## \[0.1.5] - 2026-05-28
+## [Unreleased]
+
+### 中文版本特性
+
+- **【运行】面板：修复"运行时下载"在 GitHub API 限速时无反应的问题**：当 `api.github.com/repos/ggml-org/llama.cpp/releases/latest` 返回 403（匿名调用频次限制，国内常见）时，改为优先回退到本地 ETag 缓存（`%APPDATA%\catapult\release_cache.json`），用户依然可以浏览和下载最近一次成功的 release 资产。后续网络成功时附带 `If-None-Match`，命中 304 不再消耗 API 配额。共享的 HTTP 客户端同时支持读取 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量，便于通过代理访问。
+
+## [0.1.5] - 2026-05-28
 
 ### 中文版本特性
 

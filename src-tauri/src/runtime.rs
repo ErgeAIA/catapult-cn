@@ -169,20 +169,69 @@ pub async fn fetch_latest_release(
     available_backend_ids: &[String],
 ) -> Result<ReleaseInfo> {
     let url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest";
-    let response = client
+
+    // 1) If we have a cached ETag, send it as If-None-Match so GitHub
+    //    can answer 304 (no rate-limit cost) when nothing has changed.
+    let cached = crate::release_cache::load_cached_release();
+    let mut request = client
         .get(url)
         .header("User-Agent", "catapult-launcher/0.1")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-        .context("Failed to fetch GitHub release")?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("GitHub API returned status {}", response.status());
+        .header("Accept", "application/vnd.github.v3+json");
+    if let Some(c) = cached.as_ref() {
+        request = request.header("If-None-Match", c.etag.clone());
     }
 
-    let release: GithubRelease = response.json().await.context("Failed to parse GitHub release JSON")?;
-    parse_release(release, available_backend_ids)
+    let response = match request.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            // Network-level failure (DNS, TLS, timeout). Fall back to cache.
+            if let Some(c) = cached {
+                log::warn!("fetch_latest_release: network error ({e}), using cache");
+                return Ok(c.release);
+            }
+            return Err(anyhow::anyhow!("Failed to fetch GitHub release: {e}"));
+        }
+    };
+
+    let status = response.status();
+    if status == reqwest::StatusCode::NOT_MODIFIED {
+        // 304: reuse cached body. GitHub does not count this against the rate limit.
+        if let Some(c) = cached {
+            return Ok(c.release);
+        }
+        // 304 without a cache is impossible in practice; treat as error.
+        anyhow::bail!("GitHub returned 304 but no cache is available");
+    }
+
+    if !status.is_success() {
+        // 403 / 429 / 5xx — fall back to cache so the user can still browse
+        // (and download from) a recent release during outages.
+        if let Some(c) = cached {
+            log::warn!("fetch_latest_release: status {status}, falling back to cache");
+            return Ok(c.release);
+        }
+        anyhow::bail!("GitHub API returned status {}", status);
+    }
+
+    // Capture ETag from the response, if any. GitHub uses weak ETags.
+    let etag = response
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    let release: GithubRelease = response
+        .json()
+        .await
+        .context("Failed to parse GitHub release JSON")?;
+    let parsed = parse_release(release, available_backend_ids)?;
+
+    if !etag.is_empty() {
+        crate::release_cache::save_cached_release(&parsed, &etag);
+    }
+
+    Ok(parsed)
 }
 
 fn parse_release(release: GithubRelease, available_backend_ids: &[String]) -> Result<ReleaseInfo> {

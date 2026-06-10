@@ -3,6 +3,7 @@ pub mod hardware;
 pub mod huggingface;
 pub mod models;
 pub mod modelscope;
+pub mod release_cache;
 pub mod runtime;
 pub mod server;
 
