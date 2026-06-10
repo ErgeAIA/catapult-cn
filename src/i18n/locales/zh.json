@@ -151,7 +151,9 @@
     "activate": "激活",
     "delete": "删除",
     "noCompatibleAssets": "没有找到适用于此平台的兼容资源",
-    "searchingRuntimes": "正在搜索服务器运行时…"
+    "searchingRuntimes": "正在搜索服务器运行时…",
+    "cudaDepsBadge": "CUDA 依赖",
+    "auxiliaryRecorded": "已下载 CUDA 依赖包（不含 llama-server），仍需下载对应主包：{{main}}"
   },
   "models": {
     "title": "模型",

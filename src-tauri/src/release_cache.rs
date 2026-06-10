@@ -105,6 +105,7 @@ mod tests {
                 download_url: "https://example.com/x.zip".to_string(),
                 size_mb: 15,
                 score: 20,
+                kind: "main".to_string(),
             }],
         }
     }

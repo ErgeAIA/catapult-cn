@@ -151,7 +151,9 @@
     "activate": "Activate",
     "delete": "Delete",
     "noCompatibleAssets": "No compatible assets found for this platform",
-    "searchingRuntimes": "Searching for server runtimes…"
+    "searchingRuntimes": "Searching for server runtimes…",
+    "cudaDepsBadge": "CUDA DLLs",
+    "auxiliaryRecorded": "CUDA dependency package saved (no llama-server). You still need the main package: {{main}}"
   },
   "models": {
     "title": "Models",

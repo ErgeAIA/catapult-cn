@@ -15,6 +15,11 @@ pub struct ManagedRuntime {
     /// Subdirectory name under the runtimes base dir
     pub dir_name: String,
     pub installed_at: i64,
+    /// True for auxiliary packages (e.g. `cudart-llama-bin-*`) that
+    /// supplement a main runtime but do not contain `llama-server.exe`.
+    /// Auxiliary runtimes are tracked but never become the active runtime.
+    #[serde(default)]
+    pub is_auxiliary: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +137,7 @@ impl AppConfig {
                         asset_name: String::new(),
                         dir_name,
                         installed_at: 0,
+                        is_auxiliary: false,
                     });
                     config.active_runtime = ActiveRuntime::Managed { build, backend_id: config.runtime_backend.clone().unwrap_or_default() };
                 }
@@ -381,6 +387,7 @@ mod tests {
                 asset_name: "llama-b8000-cuda.zip".to_string(),
                 dir_name: "b8000-cuda".to_string(),
                 installed_at: 1700000000,
+                is_auxiliary: false,
             }],
             custom_runtimes: vec![CustomRuntime {
                 label: "my-build".to_string(),

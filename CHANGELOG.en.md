@@ -6,6 +6,8 @@
 
 - **Runtime download fails with no feedback under GitHub API rate limit (403)**: When `api.github.com/repos/ggml-org/llama.cpp/releases/latest` returns 403 (anonymous rate limit, common in mainland China), `fetch_latest_release` now falls back to a local ETag-aware cache (`%APPDATA%\catapult\release_cache.json`) and serves the last known release so the user can still browse and download assets. Subsequent successful requests send `If-None-Match` so 304 responses do not consume the rate limit. The shared HTTP client now also honours `HTTPS_PROXY` / `HTTP_PROXY` environment variables for users behind proxies.
 
+- **CUDA DLL companion packages no longer hijack the active runtime**: `cudart-llama-bin-*.zip` is now correctly classified as an auxiliary package (`kind: "cuda_dlls"`, score `-1000`) in both `AssetOption` and `ManagedRuntime`. Downloading it is allowed (users still need it alongside the main CUDA package) but it never becomes the active runtime and never triggers auto-delete of other backends. The UI now shows a "CUDA DLLs" badge on the asset row and a hint banner after a cudart download pointing the user to the matching main package (e.g. `llama-b<build>-bin-win-cuda-XX.X-x64.zip`).
+
 ## [0.1.5] - 2026-05-18
 
 ### Fixed

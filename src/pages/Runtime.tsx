@@ -51,6 +51,10 @@ export default function Runtime() {
   const [scanning, setScanning] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<DownloadProgress | null>(null);
+  /// Set when the most recent download was an auxiliary package
+  /// (e.g. cudart-llama-bin-*) so we can prompt the user to grab
+  /// the matching main package.
+  const [auxiliaryHint, setAuxiliaryHint] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -95,7 +99,16 @@ export default function Runtime() {
       await invoke("download_runtime", { assetName: selectedAsset });
       await loadData();
       setProgress(null);
-      setShowReleases(false);
+      // If the just-downloaded asset is a CUDA-DLLs companion, hint the
+      // user that they still need the main package. The backend stores
+      // it as `is_auxiliary=true` but does not switch active_runtime.
+      const asset = release?.available_assets.find((a) => a.name === selectedAsset);
+      if (asset?.kind === "cuda_dlls") {
+        setAuxiliaryHint(selectedAsset);
+      } else {
+        setAuxiliaryHint(null);
+        setShowReleases(false);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -341,6 +354,28 @@ export default function Runtime() {
           </div>
         )}
       </div>
+
+      {/* ── Auxiliary package hint (after a cudart- download) ── */}
+      {auxiliaryHint && (
+        <div className="card border-accent-yellow/30 bg-accent-yellow/5">
+          <div className="flex items-start gap-2">
+            <Package size={14} className="text-accent-yellow mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-accent-yellow">
+                {t('runtime.auxiliaryRecorded', {
+                  main: auxiliaryHint.replace(/^cudart-/, "llama-"),
+                })}
+              </p>
+            </div>
+            <button
+              className="btn-ghost text-xs py-0.5 px-1.5 text-gray-500 hover:text-gray-300"
+              onClick={() => setAuxiliaryHint(null)}
+              title="Dismiss">
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Custom build picker ── */}
       {customBuilds && customBuilds.length > 1 && (
@@ -607,19 +642,37 @@ function AssetRow({ asset, selected, onSelect }: {
   asset: AssetOption; selected: boolean; onSelect: () => void;
 }) {
   const { t } = useTranslation();
+  const isAux = asset.kind === "cuda_dlls";
+  // Strip the `cudart-` prefix and replace `.zip` to suggest the main
+  // package name, e.g. `cudart-llama-bin-win-cuda-13.3-x64.zip` →
+  // `llama-b<build>-bin-win-cuda-13.3-x64.zip`. We don't know the build
+  // number from the cudart filename, so we fall back to a generic hint.
+  const mainHint = isAux ? asset.name.replace(/^cudart-/, "llama-") : "";
   return (
     <button
       className={`w-full flex items-center gap-3 px-3 py-2.5 border text-left transition-colors ${
-        selected ? "border-primary/60 bg-primary/10" : "border-border hover:border-border-strong hover:bg-surface-3"
+        isAux
+          ? "border-border bg-surface-2 opacity-70 hover:opacity-100"
+          : selected
+            ? "border-primary/60 bg-primary/10"
+            : "border-border hover:border-border-strong hover:bg-surface-3"
       }`}
       onClick={onSelect}>
       <div className={`w-3 h-3 rounded-full border-2 shrink-0 ${selected ? "border-primary bg-primary" : "border-gray-600"}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-gray-200 truncate">{asset.name}</span>
-          {asset.score >= 90 && <span className="badge-green text-[10px] shrink-0">{t('runtime.recommended')}</span>}
-          {asset.score >= 60 && asset.score < 90 && (
-            <span className="badge-purple text-[10px] shrink-0">{asset.backend_label}</span>
+          {isAux ? (
+            <span className="badge-gray text-[10px] shrink-0" title={t('runtime.auxiliaryRecorded', { main: mainHint })}>
+              {t('runtime.cudaDepsBadge')}
+            </span>
+          ) : (
+            <>
+              {asset.score >= 90 && <span className="badge-green text-[10px] shrink-0">{t('runtime.recommended')}</span>}
+              {asset.score >= 60 && asset.score < 90 && (
+                <span className="badge-purple text-[10px] shrink-0">{asset.backend_label}</span>
+              )}
+            </>
           )}
         </div>
         <div className="flex gap-3 mt-0.5">

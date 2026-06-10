@@ -75,6 +75,9 @@ export interface AssetOption {
   download_url: string;
   size_mb: number;
   score: number;
+  /** "main" = contains llama-server, "cuda_dlls" = companion CUDA dynamic
+   * libs only, "other" = anything else. Defaults to "main" when absent. */
+  kind?: "main" | "cuda_dlls" | "other";
 }
 
 export interface CustomBuild {

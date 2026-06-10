@@ -47,6 +47,16 @@ pub struct AssetOption {
     pub download_url: String,
     pub size_mb: u64,
     pub score: i32,
+    /// Asset role: "main" (contains llama-server), "cuda_dlls"
+    /// (companion CUDA dynamic libs, no main binary), or "other".
+    /// Defaults to "main" when missing (e.g. for cached releases from
+    /// before this field existed).
+    #[serde(default = "default_main_kind")]
+    pub kind: String,
+}
+
+fn default_main_kind() -> String {
+    "main".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +310,25 @@ fn score_asset(
         return None;
     }
 
+    // Auxiliary package detection: `cudart-llama-bin-*.zip` is a CUDA
+    // dynamic-library companion that does not contain llama-server.
+    // We still list it (the user may legitimately want it), but mark it
+    // and rank it below every main package so it never appears as the
+    // default-selected / "recommended" asset.
+    if lower.starts_with("cudart-") {
+        let size_mb = size / (1024 * 1024);
+        return Some(AssetOption {
+            name: name.to_string(),
+            backend_id: "cuda".to_string(),
+            backend_label: "CUDA DLLs".to_string(),
+            platform: os.to_string(),
+            download_url: url,
+            size_mb,
+            score: -1000,
+            kind: "cuda_dlls".to_string(),
+        });
+    }
+
     // Detect backend from asset name
     let (backend_id, backend_label, base_score) = detect_asset_backend(&lower, os);
 
@@ -319,6 +348,7 @@ fn score_asset(
         download_url: url,
         size_mb,
         score,
+        kind: "main".to_string(),
     })
 }
 
@@ -480,6 +510,7 @@ pub async fn download_runtime(
             asset_name: asset.name.clone(),
             dir_name,
             installed_at: now,
+            is_auxiliary: asset.kind == "cuda_dlls",
         },
     })
 }
@@ -494,10 +525,22 @@ pub fn register_downloaded_runtime(config: &mut AppConfig, downloaded: Downloade
     let rt = downloaded.managed_runtime;
     let build = rt.build;
     let backend_id = rt.backend_id.clone();
+    let is_auxiliary = rt.is_auxiliary;
 
     // Add to managed runtimes (replace if same build+backend exists)
     config.managed_runtimes.retain(|r| !(r.build == build && r.backend_id == backend_id));
     config.managed_runtimes.push(rt);
+
+    // Auxiliary packages (e.g. cudart-llama-bin-*) do not contain
+    // llama-server.exe; never promote them to the active runtime, and
+    // do not let auto-delete remove other backend's main packages.
+    if is_auxiliary {
+        log::info!(
+            "register_downloaded_runtime: auxiliary package recorded for b{}-{}; active_runtime unchanged",
+            build, backend_id
+        );
+        return Ok(());
+    }
 
     // Set as active
     config.active_runtime = crate::config::ActiveRuntime::Managed {
@@ -809,6 +852,47 @@ mod tests {
     }
 
     #[test]
+    fn score_asset_marks_cudart_as_cuda_dlls() {
+        let result = score_asset(
+            "cudart-llama-bin-win-cuda-13.3-x64.zip",
+            "windows", "x86_64",
+            "https://example.com/cudart.zip".to_string(),
+            390 * 1024 * 1024,
+            &["cuda".to_string()],
+        );
+        let opt = result.expect("cudart package should be classified");
+        assert_eq!(opt.kind, "cuda_dlls",
+            "cudart- prefix must be marked as cuda_dlls kind");
+        assert_eq!(opt.backend_id, "cuda");
+        assert_eq!(opt.backend_label, "CUDA DLLs");
+        // Must be ranked below every main package so it never becomes
+        // the default-selected / "recommended" asset.
+        assert!(opt.score < 0,
+            "cudart score should be deeply negative, got {}", opt.score);
+    }
+
+    #[test]
+    fn score_asset_main_cuda_still_outranks_cudart() {
+        let main = score_asset(
+            "llama-b9590-bin-win-cuda-13.3-x64.zip",
+            "windows", "x86_64",
+            "https://example.com/main.zip".to_string(),
+            150 * 1024 * 1024,
+            &["cuda".to_string()],
+        ).unwrap();
+        let cudart = score_asset(
+            "cudart-llama-bin-win-cuda-13.3-x64.zip",
+            "windows", "x86_64",
+            "https://example.com/cudart.zip".to_string(),
+            390 * 1024 * 1024,
+            &["cuda".to_string()],
+        ).unwrap();
+        assert_eq!(main.kind, "main");
+        assert!(main.score > cudart.score,
+            "main ({}) must outrank cudart ({})", main.score, cudart.score);
+    }
+
+    #[test]
     fn score_asset_skips_sha_and_source() {
         assert!(score_asset(
             "llama-b5000-sha256sums.txt",
@@ -864,6 +948,7 @@ mod tests {
             asset_name: format!("llama-b{}-{}.zip", build, backend_id),
             dir_name: format!("b{}-{}", build, backend_id),
             installed_at: 1000,
+            is_auxiliary: false,
         }
     }
 

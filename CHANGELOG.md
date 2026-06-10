@@ -12,6 +12,8 @@
 
 - **【运行】面板：修复"运行时下载"在 GitHub API 限速时无反应的问题**：当 `api.github.com/repos/ggml-org/llama.cpp/releases/latest` 返回 403（匿名调用频次限制，国内常见）时，改为优先回退到本地 ETag 缓存（`%APPDATA%\catapult\release_cache.json`），用户依然可以浏览和下载最近一次成功的 release 资产。后续网络成功时附带 `If-None-Match`，命中 304 不再消耗 API 配额。共享的 HTTP 客户端同时支持读取 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量，便于通过代理访问。
 
+- **【运行】面板：CUDA 依赖包不再误夺主运行时位置**：`cudart-llama-bin-*.zip`（仅含 `llama.dll`，不含 `llama-server.exe`）在 `AssetOption` 和 `ManagedRuntime` 中均被正确标记为辅助包（`kind: "cuda_dlls"`，score 设为 `-1000`）。允许下载（用户确实需要它配合主包使用），但**不会**被设为当前 active runtime，也不会触发其他后端的自动删除。UI 上：资产行显示「CUDA 依赖」徽章；下载完成后弹黄色提示横幅，指引用户改下对应主包（例如 `llama-b<build>-bin-win-cuda-XX.X-x64.zip`）。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性
