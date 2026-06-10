@@ -14,6 +14,8 @@
 
 - **【运行】面板：CUDA 依赖包不再误夺主运行时位置**：`cudart-llama-bin-*.zip`（仅含 `llama.dll`，不含 `llama-server.exe`）在 `AssetOption` 和 `ManagedRuntime` 中均被正确标记为辅助包（`kind: "cuda_dlls"`，score 设为 `-1000`）。允许下载（用户确实需要它配合主包使用），但**不会**被设为当前 active runtime，也不会触发其他后端的自动删除。UI 上：资产行显示「CUDA 依赖」徽章；下载完成后弹黄色提示横幅，指引用户改下对应主包（例如 `llama-b<build>-bin-win-cuda-XX.X-x64.zip`）。
 
+- **【运行】面板：失败提示显眼化 + 一键复制**：原先只在页面顶部显示一行小红字，错误内容被截断/没翻译，用户也不方便把错误上报。现在统一替换为 `ErrorBanner`：红条 + 标题（识别 403/429 时切换为「GitHub API 限速」并附限速引导文案）+ 错误全文（默认截断、可点击展开）+「复制详细信息」按钮（带"已复制"瞬态反馈，剪贴板不可用时自动展开）+ 关闭按钮。所有错误源都附 `errorContext` 标签（`fetch latest release` / `download runtime` / `activate runtime` 等），复制内容包含 `Action` / `Time` / `Error` 三段，便于排查。新增 `errorTitle` / `errorRateLimitTitle` / `errorRateLimitHint` / `errorCopyDetails` / `errorCopied` / `errorDismiss` 中英双语。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性

@@ -153,7 +153,13 @@
     "noCompatibleAssets": "没有找到适用于此平台的兼容资源",
     "searchingRuntimes": "正在搜索服务器运行时…",
     "cudaDepsBadge": "CUDA 依赖",
-    "auxiliaryRecorded": "已下载 CUDA 依赖包（不含 llama-server），仍需下载对应主包：{{main}}"
+    "auxiliaryRecorded": "已下载 CUDA 依赖包（不含 llama-server），仍需下载对应主包：{{main}}",
+    "errorTitle": "操作失败",
+    "errorRateLimitTitle": "GitHub API 限速",
+    "errorRateLimitHint": "GitHub 公共 API 对未认证调用限速 60 次/小时。可设置 HTTPS_PROXY / HTTP_PROXY 环境变量走代理，或等待 1 小时后重试；之前成功缓存的版本仍可下载。",
+    "errorCopyDetails": "复制详细信息",
+    "errorCopied": "已复制",
+    "errorDismiss": "关闭"
   },
   "models": {
     "title": "模型",

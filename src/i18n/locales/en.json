@@ -153,7 +153,13 @@
     "noCompatibleAssets": "No compatible assets found for this platform",
     "searchingRuntimes": "Searching for server runtimes…",
     "cudaDepsBadge": "CUDA DLLs",
-    "auxiliaryRecorded": "CUDA dependency package saved (no llama-server). You still need the main package: {{main}}"
+    "auxiliaryRecorded": "CUDA dependency package saved (no llama-server). You still need the main package: {{main}}",
+    "errorTitle": "Operation failed",
+    "errorRateLimitTitle": "GitHub API rate limit",
+    "errorRateLimitHint": "GitHub's anonymous API is limited to 60 requests/hour. Set HTTPS_PROXY / HTTP_PROXY to route through a proxy, or wait an hour and retry; previously cached releases are still downloadable.",
+    "errorCopyDetails": "Copy details",
+    "errorCopied": "Copied",
+    "errorDismiss": "Dismiss"
   },
   "models": {
     "title": "Models",

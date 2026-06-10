@@ -8,6 +8,8 @@
 
 - **CUDA DLL companion packages no longer hijack the active runtime**: `cudart-llama-bin-*.zip` is now correctly classified as an auxiliary package (`kind: "cuda_dlls"`, score `-1000`) in both `AssetOption` and `ManagedRuntime`. Downloading it is allowed (users still need it alongside the main CUDA package) but it never becomes the active runtime and never triggers auto-delete of other backends. The UI now shows a "CUDA DLLs" badge on the asset row and a hint banner after a cudart download pointing the user to the matching main package (e.g. `llama-b<build>-bin-win-cuda-XX.X-x64.zip`).
 
+- **Runtime page: prominent error banner with one-click copy**: the old single-line red text was easy to miss, often truncated, and gave users no way to report what went wrong. It is now replaced with an `ErrorBanner` that shows a red border + title (switches to "GitHub API rate limit" with proxy/wait guidance when 403/429 is detected), the full error text (truncated by default, click to expand), a "Copy details" button (with transient "Copied" feedback; falls back to expand when the clipboard API is unavailable), and a dismiss button. Every error source is now tagged with an `errorContext` label (`fetch latest release` / `download runtime` / `activate runtime` / etc.); the copied payload is `Action` / `Time` / `Error` for easier triage. New i18n keys: `errorTitle`, `errorRateLimitTitle`, `errorRateLimitHint`, `errorCopyDetails`, `errorCopied`, `errorDismiss`.
+
 ## [0.1.5] - 2026-05-18
 
 ### Fixed

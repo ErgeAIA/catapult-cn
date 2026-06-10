@@ -15,6 +15,10 @@ import {
   Trash2,
   Play,
   Archive,
+  AlertCircle,
+  X,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -44,6 +48,10 @@ export default function Runtime() {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /// Short label for the action that produced the current error
+  /// (e.g. "fetch release", "download runtime") so the user can include
+  /// it when filing a bug report. Cleared together with `error`.
+  const [errorContext, setErrorContext] = useState<string | null>(null);
   const [showReleases, setShowReleases] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -56,6 +64,14 @@ export default function Runtime() {
   /// the matching main package.
   const [auxiliaryHint, setAuxiliaryHint] = useState<string | null>(null);
 
+  // Surface an error along with a short human-readable label of the
+  // action that produced it, so the user can include both when pasting
+  // the error into a bug report.
+  const reportError = (msg: string, ctx: string) => {
+    setError(msg);
+    setErrorContext(ctx);
+  };
+
   const loadData = async () => {
     try {
       const [rt, bk, cfg] = await Promise.all([
@@ -67,13 +83,14 @@ export default function Runtime() {
       setBackends(bk);
       setAppConfig(cfg);
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "load runtime info");
     }
   };
 
   const checkUpdate = async () => {
     setChecking(true);
     setError(null);
+    setErrorContext(null);
     try {
       const rel = await invoke<ReleaseInfo>("check_latest_release");
       setRelease(rel);
@@ -81,7 +98,7 @@ export default function Runtime() {
         setSelectedAsset(rel.available_assets[0].name);
       }
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "fetch latest release");
     } finally {
       setChecking(false);
     }
@@ -91,6 +108,7 @@ export default function Runtime() {
     if (!selectedAsset) return;
     setDownloading(true);
     setError(null);
+    setErrorContext(null);
     setProgress({ id: "runtime", bytes_downloaded: 0, total_bytes: 0, percent: 0, status: "downloading" });
     const unlisten = await listen<DownloadProgress>("download_progress", (e) => {
       setProgress(e.payload);
@@ -110,7 +128,7 @@ export default function Runtime() {
         setShowReleases(false);
       }
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "download runtime");
     } finally {
       unlisten();
       setDownloading(false);
@@ -181,7 +199,7 @@ export default function Runtime() {
         setCustomBuilds(result.builds);
       }
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "scan custom runtime");
     } finally {
       setScanning(false);
     }
@@ -192,7 +210,7 @@ export default function Runtime() {
       await invoke("set_custom_runtime_binary", { binaryPath: build.binary_path });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "set custom runtime");
     }
   };
 
@@ -201,7 +219,7 @@ export default function Runtime() {
       await invoke("set_active_runtime", { runtimeType: "managed", id: build, backendId });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "activate managed runtime");
     }
   };
 
@@ -210,7 +228,7 @@ export default function Runtime() {
       await invoke("set_active_runtime", { runtimeType: "custom", id: index });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "activate custom runtime");
     }
   };
 
@@ -219,7 +237,7 @@ export default function Runtime() {
       await invoke("delete_managed_runtime", { build, backendId });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "delete managed runtime");
     }
   };
 
@@ -228,7 +246,7 @@ export default function Runtime() {
       await invoke("remove_custom_runtime", { index });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "remove custom runtime");
     }
   };
 
@@ -237,7 +255,7 @@ export default function Runtime() {
       await invoke("set_auto_delete_runtimes", { enabled });
       await loadData();
     } catch (e) {
-      setError(String(e));
+      reportError(String(e), "toggle auto-delete");
     }
   };
 
@@ -275,9 +293,11 @@ export default function Runtime() {
       </div>
 
       {error && (
-        <div className="card border-accent-red/30 bg-accent-red/5">
-          <p className="text-sm text-accent-red">{error}</p>
-        </div>
+        <ErrorBanner
+          error={error}
+          context={errorContext}
+          onDismiss={() => { setError(null); setErrorContext(null); }}
+        />
       )}
 
       {scanning && (
@@ -634,6 +654,80 @@ export default function Runtime() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/// Cheap heuristic for "the error message looks like a GitHub rate-limit
+/// 403/429". Tauri bubbles reqwest error strings up unchanged, so we
+/// can match on the canonical phrasing. Matching is case-insensitive.
+function looksLikeRateLimit(message: string): boolean {
+  return /status (403|429)|403 Forbidden|429 Too Many|rate.?limit|API rate/i.test(message);
+}
+
+/// Prominent error banner used in place of the old single-line red text.
+/// Shows a clear title (rate-limit vs. generic), the full error string
+/// for debugging, and a one-click "copy details" button so the user can
+/// paste it into a bug report.
+function ErrorBanner({ error, context, onDismiss }: {
+  error: string; context: string | null; onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const isRateLimit = looksLikeRateLimit(error);
+  const title = isRateLimit ? t('runtime.errorRateLimitTitle') : t('runtime.errorTitle');
+  const timestamp = new Date().toISOString();
+
+  const copyDetails = async () => {
+    const lines: string[] = [];
+    if (context) lines.push(`Action: ${context}`);
+    lines.push(`Time:    ${timestamp}`);
+    lines.push(`Error:   ${error}`);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard may be unavailable in some webviews; fall back to a
+      // selectable <pre> so the user can still grab the text manually.
+      setExpanded(true);
+    }
+  };
+
+  return (
+    <div className="card border-accent-red/40 bg-accent-red/5">
+      <div className="flex items-start gap-2">
+        <AlertCircle size={15} className="text-accent-red mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-accent-red">{title}</p>
+          {isRateLimit && (
+            <p className="text-xs text-accent-red/90 leading-relaxed">
+              {t('runtime.errorRateLimitHint')}
+            </p>
+          )}
+          <button
+            className="text-xs text-accent-red/80 hover:text-accent-red font-mono text-left break-all block"
+            onClick={() => setExpanded(!expanded)}
+            title={expanded ? "Click to collapse" : "Click to expand"}>
+            {expanded ? error : (error.length > 140 ? error.slice(0, 140) + "…" : error)}
+          </button>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            className="btn-ghost text-xs py-0.5 px-1.5 text-accent-red/80 hover:text-accent-red inline-flex items-center gap-1"
+            onClick={copyDetails}
+            title={t('runtime.errorCopyDetails')}>
+            {copied ? <><Check size={11} /> {t('runtime.errorCopied')}</> : <><Copy size={11} /> {t('runtime.errorCopyDetails')}</>}
+          </button>
+          <button
+            className="btn-ghost text-xs py-0.5 px-1.5 text-accent-red/80 hover:text-accent-red"
+            onClick={onDismiss}
+            title={t('runtime.errorDismiss')}>
+            <X size={12} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
