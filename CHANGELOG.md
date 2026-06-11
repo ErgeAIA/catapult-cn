@@ -26,6 +26,8 @@
 
 - **【运行】面板：最新版本号变为 GitHub 跳转链接**：之前「最新版本: b9594」是纯文本，现在把整段做成一个带 `ArrowUpRight` 图标的按钮（hover 时变 primary 色 + 下划线），点击用 `invoke('open_url')` 打开对应的 GitHub release 页面（`https://github.com/ggml-org/llama.cpp/releases/tag/{tag_name}`）。i18n 新增 `openReleaseOnGithub` 中英双语。
 
+- **【运行】面板：服务器日志新增"一键复制"按钮**：「服务器日志」头部右侧新增复制按钮（`ClipboardCopy` 图标），紧邻折叠箭头。点击后用 `navigator.clipboard.writeText` 把 `logs` 数组用换行符拼接写入剪贴板（剪贴板 API 不可用时回退到隐藏 `textarea` + `document.execCommand("copy")`），1.5s 内图标切换为 `CircleCheck` 并变 primary 色作"已复制"瞬态反馈。`logs.length === 0` 时按钮自动 disabled。`e.stopPropagation()` 避免误触折叠面板。i18n 新增 `server.labels.copyLogs` / `logsCopied` 中英双语。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性

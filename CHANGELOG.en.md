@@ -20,6 +20,8 @@
 
 - **Runtime page: latest-version label is now a link to GitHub**: the "Latest: b9594" text is now a button with an `ArrowUpRight` icon, hovering turns it primary-colored and underlined. Clicking it opens the corresponding GitHub release page (`https://github.com/ggml-org/llama.cpp/releases/tag/{tag_name}`) through `invoke('open_url')`. New i18n key: `openReleaseOnGithub`.
 
+- **Server logs: one-click copy button**: a new copy button (`ClipboardCopy` icon) is added to the right of the "Server logs" header, sitting next to the existing collapse chevron. Clicking it writes the `logs` array joined by `\n` to the clipboard via `navigator.clipboard.writeText` (with a hidden `<textarea>` + `document.execCommand("copy")` fallback when the Clipboard API is unavailable). For 1.5s the icon swaps to a primary-colored `CircleCheck` as a transient "copied" affordance. The button auto-disables when `logs.length === 0`. `e.stopPropagation()` keeps the click from also toggling the panel collapse. New i18n keys: `server.labels.copyLogs`, `logsCopied`.
+
 ## [0.1.5] - 2026-05-18
 
 ### Fixed

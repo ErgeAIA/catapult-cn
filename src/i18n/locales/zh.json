@@ -660,7 +660,9 @@
       "ngramMapK4VSizeM": "ngram-map-k4v 大小 M",
       "ngramMapK4VSizeMHint": "草稿 m-gram 长度",
       "ngramMapK4VMinHits": "ngram-map-k4v 最小命中",
-      "serverLogs": "服务器日志"
+      "serverLogs": "服务器日志",
+      "copyLogs": "复制全部日志",
+      "logsCopied": "已复制到剪贴板"
     },
     "options": {
       "auto": "自动",

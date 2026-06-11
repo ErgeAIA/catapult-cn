@@ -661,7 +661,9 @@
       "ngramMapK4VSizeM": "ngram-map-k4v Size M",
       "ngramMapK4VSizeMHint": "Draft m-gram length",
       "ngramMapK4VMinHits": "ngram-map-k4v Min Hits",
-      "serverLogs": "Server Logs"
+      "serverLogs": "Server Logs",
+      "copyLogs": "Copy all logs",
+      "logsCopied": "Logs copied to clipboard"
     },
     "options": {
       "auto": "Auto",

@@ -15,6 +15,8 @@ import {
   FolderOpen,
   Trash2,
   Eye,
+  ClipboardCopy,
+  CircleCheck,
 } from "lucide-react";
 import type { ModelInfo, ServerConfig, ServerStatus } from "../types";
 
@@ -259,6 +261,7 @@ export default function Server() {
   const [showLogs, setShowLogs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
+  const [copiedLogs, setCopiedLogs] = useState(false);
   const [showModelList, setShowModelList] = useState(false);
   const logsRef = useRef<HTMLDivElement>(null);
   const pendingLogs = useRef<string[]>([]);
@@ -1315,7 +1318,39 @@ export default function Server() {
               <span className="text-sm font-medium text-gray-300">{t("server.labels.serverLogs")}</span>
               {logs.length > 0 && <span className="badge-gray text-[10px]">{logs.length}</span>}
             </div>
-            {showLogs ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label={t("server.labels.copyLogs")}
+                title={t("server.labels.copyLogs")}
+                disabled={logs.length === 0}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const text = logs.join("\n");
+                  try {
+                    await navigator.clipboard.writeText(text);
+                  } catch {
+                    // Fallback: temporary textarea (works in dev / Tauri webview)
+                    const ta = document.createElement("textarea");
+                    ta.value = text;
+                    ta.style.position = "fixed";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand("copy"); } catch {}
+                    document.body.removeChild(ta);
+                  }
+                  setCopiedLogs(true);
+                  window.setTimeout(() => setCopiedLogs(false), 1500);
+                }}
+                className="btn-ghost p-1 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {copiedLogs
+                  ? <CircleCheck size={13} className="text-primary" />
+                  : <ClipboardCopy size={13} className="text-gray-500" />}
+              </button>
+              {showLogs ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+            </div>
           </button>
           {showLogs && (
             <div ref={logsRef} className="mt-3 bg-surface-0 p-3 h-48 overflow-y-auto font-mono text-xs text-gray-400 space-y-0.5">
