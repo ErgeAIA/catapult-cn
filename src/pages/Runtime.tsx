@@ -20,6 +20,7 @@ import {
   Copy,
   Check,
   CloudDownload,
+  ArrowUpRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -52,6 +53,13 @@ async function openLink(url: string) {
   } catch {
     window.open(url, "_blank");
   }
+}
+
+/// Builds the GitHub release page URL for a given tag (e.g. "b9594").
+/// Hardcoded to the upstream `ggml-org/llama.cpp` repo because that
+/// is the single source of releases surfaced by `fetch_latest_release`.
+function githubReleaseUrl(tag: string): string {
+  return `https://github.com/ggml-org/llama.cpp/releases/tag/${tag}`;
 }
 
 export default function Runtime() {
@@ -617,9 +625,15 @@ export default function Runtime() {
             <>
               <div className="flex items-center gap-3 mb-4">
                 <Package size={14} className="text-gray-400" />
-                <span className="text-sm text-gray-300">
+                <button
+                  type="button"
+                  onClick={() => openLink(githubReleaseUrl(release.tag_name))}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-300 hover:text-primary hover:underline rounded transition-colors"
+                  title={t('runtime.openReleaseOnGithub')}
+                >
                   {t('runtime.latest')} <span className="font-mono text-gray-100">{release.tag_name}</span>
-                </span>
+                  <ArrowUpRight size={12} className="opacity-60" />
+                </button>
                 <span className="text-xs text-gray-600 ml-auto">
                   {new Date(release.published_at).toLocaleDateString()}
                 </span>

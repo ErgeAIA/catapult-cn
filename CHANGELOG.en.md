@@ -18,6 +18,8 @@
 
 - **Runtime page: netdisk mirror entry (Quark)**: a new "Netdisk" button (`CloudDownload` icon) is added to the header of the "Download runtime" card, sitting to the left of the existing Refresh button. Clicking it routes through `invoke('open_url')` (with a `window.open` fallback) to the Quark netdisk mirror (https://pan.quark.cn/s/22a140f65f88?pwd=TXQs) — useful for users in mainland China where GitHub release assets are slow even after the proxy support. New i18n keys: `netdiskDownload`, `netdiskTitle`.
 
+- **Runtime page: latest-version label is now a link to GitHub**: the "Latest: b9594" text is now a button with an `ArrowUpRight` icon, hovering turns it primary-colored and underlined. Clicking it opens the corresponding GitHub release page (`https://github.com/ggml-org/llama.cpp/releases/tag/{tag_name}`) through `invoke('open_url')`. New i18n key: `openReleaseOnGithub`.
+
 ## [0.1.5] - 2026-05-18
 
 ### Fixed

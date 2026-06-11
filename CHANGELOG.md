@@ -24,6 +24,8 @@
 
 - **【运行】面板：网盘下载入口（夸克网盘）**：在「下载运行时」卡片头部右侧新增「网盘下载」按钮（图标 `CloudDownload`），位置在「刷新」按钮左侧。点击后用 `invoke('open_url')`（fallback `window.open`）直达夸克网盘镜像（https://pan.quark.cn/s/22a140f65f88?pwd=TXQs），适合 GitHub release 资产直连慢速的国内用户。i18n 新增 `netdiskDownload` / `netdiskTitle` 中英双语。
 
+- **【运行】面板：最新版本号变为 GitHub 跳转链接**：之前「最新版本: b9594」是纯文本，现在把整段做成一个带 `ArrowUpRight` 图标的按钮（hover 时变 primary 色 + 下划线），点击用 `invoke('open_url')` 打开对应的 GitHub release 页面（`https://github.com/ggml-org/llama.cpp/releases/tag/{tag_name}`）。i18n 新增 `openReleaseOnGithub` 中英双语。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性
