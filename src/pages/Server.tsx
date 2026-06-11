@@ -1295,8 +1295,6 @@ export default function Server() {
             <div className="space-y-3 mt-2">
               <Toggle label={t("server.labels.mmprojOffload")} hint={t("server.labels.mmprojOffloadHint")}
                 checked={!hasFlag("no-mmproj-offload")} onChange={(v) => setFlag("no-mmproj-offload", !v)} />
-              <Toggle label={t("server.labels.mmprojAuto")} hint={t("server.labels.mmprojAutoHint")}
-                checked={!hasFlag("no-mmproj")} onChange={(v) => setFlag("no-mmproj", !v)} />
             </div>
 
             <Section title={t("server.sections.ttsAudio")} />
