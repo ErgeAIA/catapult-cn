@@ -114,17 +114,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add Gitee to known hosts
-        run: mkdir -p ~/.ssh && ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts
-
-      - name: Setup SSH key for Gitee
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.GITEE_PRIVATE_KEY }}
-
       - name: Push to Gitee
         run: |
-          git remote add gitee git@gitee.com:ergeaia/catapult-cn.git
+          git remote add gitee https://oauth2:${{ secrets.GITEE_ACCESS_TOKEN }}@gitee.com/ergeaia/catapult-cn.git
           git push gitee ${{ github.ref }} --force
           if [[ '${{ github.ref }}' == refs/tags/* ]]; then
             git push gitee ${{ github.ref_name }} --force
