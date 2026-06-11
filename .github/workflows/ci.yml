@@ -135,7 +135,7 @@ jobs:
         id: release
         run: |
           echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          gh release view ${{ github.ref_name }} --include-drafts --json body,isPrerelease --jq '{body: .body, prerelease: .prerelease}' > release.json
+          gh release view ${{ github.ref_name }} --json body,isPrerelease --jq '{body: .body, prerelease: .prerelease}' > release.json
           cat release.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
