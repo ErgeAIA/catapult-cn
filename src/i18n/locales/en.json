@@ -146,6 +146,8 @@
     "custom": "Custom",
     "close": "Close",
     "refresh": "Refresh",
+    "netdiskDownload": "Netdisk",
+    "netdiskTitle": "Faster in China — download release assets via netdisk mirror",
     "cancel": "Cancel",
     "recommended": "Recommended",
     "activate": "Activate",

@@ -22,6 +22,8 @@
 
 - **【运行】面板：失败提示显眼化 + 一键复制**：原先只在页面顶部显示一行小红字，错误内容被截断/没翻译，用户也不方便把错误上报。现在统一替换为 `ErrorBanner`：红条 + 标题（识别 403/429 时切换为「GitHub API 限速」并附限速引导文案）+ 错误全文（默认截断、可点击展开）+「复制详细信息」按钮（带"已复制"瞬态反馈，剪贴板不可用时自动展开）+ 关闭按钮。所有错误源都附 `errorContext` 标签（`fetch latest release` / `download runtime` / `activate runtime` 等），复制内容包含 `Action` / `Time` / `Error` 三段，便于排查。新增 `errorTitle` / `errorRateLimitTitle` / `errorRateLimitHint` / `errorCopyDetails` / `errorCopied` / `errorDismiss` 中英双语。
 
+- **【运行】面板：网盘下载入口（占位）**：在「下载运行时」卡片头部右侧新增「网盘下载」按钮（图标 `CloudDownload`），位置在「刷新」按钮左侧。点击后用 `invoke('open_url')`（fallback `window.open`）直达作者维护的网盘镜像，适合 GitHub release 资产直连慢速的国内用户。链接占位常量 `NETDISK_DOWNLOAD_URL`（在 `src/pages/Runtime.tsx` 顶部）当前为 `https://pan.baidu.com/s/PLACEHOLDER_NEEDS_FILL`，**待作者替换为真实分享链接**。i18n 新增 `netdiskDownload` / `netdiskTitle` 中英双语。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性

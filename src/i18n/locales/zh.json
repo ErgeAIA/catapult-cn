@@ -146,6 +146,8 @@
     "custom": "自定义",
     "close": "关闭",
     "refresh": "刷新",
+    "netdiskDownload": "网盘下载",
+    "netdiskTitle": "国内用户推荐 · 通过网盘下载 GitHub Release 资产",
     "cancel": "取消",
     "recommended": "推荐",
     "activate": "激活",

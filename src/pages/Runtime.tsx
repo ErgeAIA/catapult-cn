@@ -19,6 +19,7 @@ import {
   X,
   Copy,
   Check,
+  CloudDownload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -35,6 +36,22 @@ import type {
 function mbToStr(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
   return `${Math.round(mb)} MB`;
+}
+
+/// URL of the netdisk mirror that hosts the GitHub release assets for
+/// faster download in mainland China. Placeholder — replace with the
+/// real share link once the netdisk is set up.
+const NETDISK_DOWNLOAD_URL = "https://pan.baidu.com/s/PLACEHOLDER_NEEDS_FILL";
+
+/// Mirrors the openLink helper in `components/LanguageSwitcher.tsx`:
+/// prefer the Rust `open_url` Tauri command, fall back to window.open
+/// when the plugin is unavailable (e.g. in plain Vite dev).
+async function openLink(url: string) {
+  try {
+    await invoke("open_url", { url });
+  } catch {
+    window.open(url, "_blank");
+  }
 }
 
 export default function Runtime() {
@@ -580,6 +597,14 @@ export default function Runtime() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="section-title mb-0">{t('runtime.downloadRuntime')}</h2>
             <div className="flex gap-2">
+              <button
+                className="btn-secondary text-xs text-accent-yellow"
+                onClick={() => openLink(NETDISK_DOWNLOAD_URL)}
+                title={t('runtime.netdiskTitle')}
+              >
+                <CloudDownload size={13} />
+                {t('runtime.netdiskDownload')}
+              </button>
               <button className="btn-secondary text-xs" onClick={checkUpdate} disabled={checking}>
                 <RefreshCw size={13} className={checking ? "animate-spin" : ""} />
                 {t('runtime.refresh')}
