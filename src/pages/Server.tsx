@@ -1312,20 +1312,23 @@ export default function Server() {
 
         {/* Server logs */}
         <div className="card">
-          <button className="w-full flex items-center justify-between" onClick={() => setShowLogs(!showLogs)}>
-            <div className="flex items-center gap-2">
+          <div className="w-full flex items-center justify-between">
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => setShowLogs(!showLogs)}
+            >
               <Terminal size={15} className="text-gray-400" />
               <span className="text-sm font-medium text-gray-300">{t("server.labels.serverLogs")}</span>
               {logs.length > 0 && <span className="badge-gray text-[10px]">{logs.length}</span>}
-            </div>
+            </button>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 aria-label={t("server.labels.copyLogs")}
                 title={t("server.labels.copyLogs")}
                 disabled={logs.length === 0}
-                onClick={async (e) => {
-                  e.stopPropagation();
+                onClick={async () => {
                   const text = logs.join("\n");
                   try {
                     await navigator.clipboard.writeText(text);
@@ -1349,9 +1352,16 @@ export default function Server() {
                   ? <CircleCheck size={13} className="text-primary" />
                   : <ClipboardCopy size={13} className="text-gray-500" />}
               </button>
-              {showLogs ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+              <button
+                type="button"
+                className="btn-ghost p-1"
+                onClick={() => setShowLogs(!showLogs)}
+                aria-label={showLogs ? t("server.labels.collapsePanel") : t("server.labels.expandPanel")}
+              >
+                {showLogs ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+              </button>
             </div>
-          </button>
+          </div>
           {showLogs && (
             <div ref={logsRef} className="mt-3 bg-surface-0 p-3 h-48 overflow-y-auto font-mono text-xs text-gray-400 space-y-0.5">
               {logs.length === 0 ? (

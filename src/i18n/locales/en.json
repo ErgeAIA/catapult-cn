@@ -663,7 +663,9 @@
       "ngramMapK4VMinHits": "ngram-map-k4v Min Hits",
       "serverLogs": "Server Logs",
       "copyLogs": "Copy all logs",
-      "logsCopied": "Logs copied to clipboard"
+      "logsCopied": "Logs copied to clipboard",
+      "collapsePanel": "Collapse panel",
+      "expandPanel": "Expand panel"
     },
     "options": {
       "auto": "Auto",
