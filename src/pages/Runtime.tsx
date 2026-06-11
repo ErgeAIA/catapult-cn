@@ -41,7 +41,7 @@ function mbToStr(mb: number): string {
 /// URL of the netdisk mirror that hosts the GitHub release assets for
 /// faster download in mainland China. Placeholder — replace with the
 /// real share link once the netdisk is set up.
-const NETDISK_DOWNLOAD_URL = "https://pan.baidu.com/s/PLACEHOLDER_NEEDS_FILL";
+const NETDISK_DOWNLOAD_URL = "https://pan.quark.cn/s/22a140f65f88?pwd=TXQs";
 
 /// Mirrors the openLink helper in `components/LanguageSwitcher.tsx`:
 /// prefer the Rust `open_url` Tauri command, fall back to window.open
