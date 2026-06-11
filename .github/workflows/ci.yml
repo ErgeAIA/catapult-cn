@@ -127,9 +127,17 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug releases
+        run: |
+          echo "Looking for release with tag: ${{ github.ref_name }}"
+          gh release list --limit 10
+          gh release view ${{ github.ref_name }} --json body,isPrerelease 2>&1 || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get Release Info
         id: release
