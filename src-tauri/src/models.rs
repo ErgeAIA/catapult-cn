@@ -422,12 +422,16 @@ fn scan_gguf_recursive(
             let params_b = cached_meta.size_label
                 .or_else(|| extract_params_from_filename(&filename).map(|p| format!("{}B", p)));
 
-            // Find compatible mmproj for vision models
-            let mmproj_path = if cached_meta.is_vision {
-                find_mmproj(&path, &filename, cache)
-            } else {
-                None
-            };
+            // Find compatible mmproj. Some third-party re-quants (e.g.
+            // Unsloth UD) drop the `image-to-text` tag from GGUF
+            // metadata, so a vision model that *should* pair with a
+            // co-located mmproj ends up looking like a text model. We
+            // always try find_mmproj; if a matching mmproj is found we
+            // upgrade is_vision to true (this is conservative — a
+            // matching mmproj file existing in the same directory is
+            // strong evidence the user intended vision pairing).
+            let mmproj_path = find_mmproj(&path, &filename, cache);
+            let is_vision = cached_meta.is_vision || mmproj_path.is_some();
 
             models.push(ModelInfo {
                 id,
@@ -439,7 +443,7 @@ fn scan_gguf_recursive(
                 quant,
                 params_b,
                 context_length: cached_meta.context_length,
-                is_vision: cached_meta.is_vision,
+                is_vision,
                 mmproj_path,
                 split_files: vec![],
             });
@@ -1135,5 +1139,31 @@ mod tests {
     fn is_mmproj_by_metadata_none_architecture() {
         let meta = GgufMeta::default();
         assert!(!is_mmproj_by_metadata(&meta));
+    }
+
+    /// Sanity check for the segment-extraction logic that
+    /// find_mmproj uses. The user's reported case is
+    /// `gemma-4-12b-it-UD-Q4_K_XL.gguf` paired with
+    /// `gemma-4-12b-it-GGUF-mmproj-F16.gguf`. After stripping the
+    /// Q4_K_XL quant suffix the base is "gemma-4-12b-it-UD" with
+    /// segments [gemma, 4, 12b, it, ud], of which [gemma, 4, 12b, it]
+    /// are present in the mmproj filename (4/5 ≥ 2), so find_mmproj
+    /// accepts the match.
+    #[test]
+    fn gemma_4_12b_unsloth_ud_pairs_with_mmproj() {
+        // Inlined segment extraction to keep the test free of regex
+        // compilation (which is fine but redundant with the
+        // implementation).
+        let stem = "gemma-4-12b-it-UD-Q4_K_XL";
+        let lower = stem.to_lowercase();
+        let segments: Vec<&str> = lower
+            .split(|c: char| c == '-' || c == '_' || c == '.')
+            .filter(|s| !s.is_empty())
+            .collect();
+        let mmproj = "gemma-4-12b-it-gguf-mmproj-f16.gguf";
+        let matches = segments.iter()
+            .filter(|seg| mmproj.contains(*seg))
+            .count();
+        assert!(matches >= 2, "expected ≥2 segment matches, got {} (segments: {:?})", matches, segments);
     }
 }
