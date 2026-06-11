@@ -116,7 +116,7 @@ jobs:
 
       - name: Push to Gitee
         run: |
-          git remote add gitee https://oauth2:${{ secrets.GITEE_ACCESS_TOKEN }}@gitee.com/ergeaia/catapult-cn.git
+          git remote add gitee https://ergeaia:${{ secrets.GITEE_ACCESS_TOKEN }}@gitee.com/ergeaia/catapult-cn.git
           git push gitee ${{ github.ref }} --force
           if [[ '${{ github.ref }}' == refs/tags/* ]]; then
             git push gitee ${{ github.ref_name }} --force
