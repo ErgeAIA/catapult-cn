@@ -6,7 +6,7 @@
 
 原项目更新日志见：[English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [0.1.5-1] - 2026-06-11
 
 ### 中文版本特性
 
