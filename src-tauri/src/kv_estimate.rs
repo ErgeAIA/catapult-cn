@@ -103,7 +103,21 @@ pub fn estimate_for_config(
         .filter(|g| g.vram_mb > 0)
         .map(|g| g.vram_mb)
         .sum();
-    let kv_total_mb = estimate_kv_mb(model_path, n_ctx, kv_quant).unwrap_or(0);
+    // GGUF metadata may be missing on third-party re-quants (e.g.
+    // Unsloth, mradermacher). In that case the architecture fields
+    // are None and we cannot compute a reliable per-token KV figure.
+    // We still surface a "cannot estimate" warning so the user is
+    // not silently told the config is fine when we actually don't
+    // know.
+    let kv_meta = crate::models::read_gguf_metadata_for_estimate(model_path);
+    let kv_arch_complete = kv_meta
+        .map(|m| m.block_count.is_some() && m.head_count_kv.is_some() && m.key_length.is_some())
+        .unwrap_or(false);
+    let kv_total_mb = if kv_arch_complete {
+        estimate_kv_mb(model_path, n_ctx, kv_quant).unwrap_or(0)
+    } else {
+        0
+    };
     // Subtract 256 MB for llama.cpp runtime / driver overhead so we
     // do not flag configs that are technically tight but workable.
     let usable_vram_mb = available_vram_mb.saturating_sub(256);
@@ -117,6 +131,16 @@ pub fn estimate_for_config(
 
     let warning = if available_vram_mb == 0 {
         Some("No VRAM detected (integrated GPU or WSL1). KV cache will be served from RAM; the estimate below is only a lower bound.".to_string())
+    } else if !kv_arch_complete {
+        // We know the model size and the available VRAM, but not the
+        // arch — flag it as "we cannot estimate KV" rather than
+        // pretending the config is safe. Typical cause: a third-party
+        // re-quant (Unsloth, mradermacher) that does not emit the
+        // arch KV pairs the llama.cpp loader uses.
+        Some(format!(
+            "Cannot read the model architecture from the GGUF header (block_count / head_count_kv / key_length missing). \
+             Weights ≈ {model_weights_mb} MB; VRAM {available_vram_mb} MB. Verify --ctx-size / KV cache type manually."
+        ))
     } else if usage_pct >= BLOCK_THRESHOLD_PCT {
         Some(format!(
             "Predicted to OOM at startup: weights + KV cache ≈ {used_mb} MB but only {available_vram_mb} MB VRAM. \
@@ -158,5 +182,18 @@ mod tests {
         let a = kv_per_token_bytes(32, 8, 128, "f16") as f64;
         let b = kv_per_token_bytes(64, 8, 128, "f16") as f64;
         assert!((b / a - 2.0).abs() < 0.01, "doubling block_count must double per-token KV");
+    }
+
+    #[test]
+    fn gemma_4_12b_q4_estimate_order_of_magnitude() {
+        // gemma-4-12b-UD-Q4_K_XL: 46 layers, 8 KV heads, 256 head_dim, q8_0 KV
+        // 2 * 256 * 8 * 46 * 1.0 = 188_416 bytes/token ≈ 184 KB/token
+        let per_token = kv_per_token_bytes(46, 8, 256, "q8_0");
+        assert!(per_token > 180_000 && per_token < 200_000,
+            "gemma 4 12B q8_0 per-token KV should be ~184KB, got {}", per_token);
+        // 65536 ctx -> ~12 GB
+        let total_mb = (per_token as f64) * 65536.0 * 1.08 / (1024.0 * 1024.0);
+        assert!(total_mb > 12_000.0 && total_mb < 14_000.0,
+            "65K ctx KV should be ~12-13 GB, got {} MB", total_mb);
     }
 }

@@ -70,7 +70,7 @@ fn read_gguf_metadata(path: &Path) -> Option<GgufMeta> {
 
     let mut meta = GgufMeta::default();
 
-    for _ in 0..kv_count.min(128) {
+    for _ in 0..kv_count.min(512) {
         let key = match read_gguf_string(&mut f) {
             Some(s) => s,
             None => break,
