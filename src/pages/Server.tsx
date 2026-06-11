@@ -357,6 +357,37 @@ export default function Server() {
     try { setPresets(await invoke<string[]>("list_server_presets")); } catch {}
   };
 
+  // One-shot data migration: per the v0.1.5-1 product decision the
+  // built-in default for flash_attn is "auto" so llama.cpp can pick
+  // the most appropriate backend at runtime. Earlier versions saved
+  // "on" into every preset (including user-named ones). We scan
+  // every preset once, force the field to "auto" if it is not
+  // already, and re-save. A sessionStorage flag prevents re-running
+  // the migration on every page mount.
+  const MIGRATION_FLAG = "catapult_flash_attn_migrated_v0_1_5_1";
+  const migrateFlashAttn = async () => {
+    if (sessionStorage.getItem(MIGRATION_FLAG) === "1") return;
+    try {
+      const names = await invoke<string[]>("list_server_presets");
+      for (const name of names) {
+        try {
+          const cfg = await invoke<ServerConfig>("load_server_preset", { name });
+          if (cfg.flash_attn && cfg.flash_attn !== "auto") {
+            cfg.flash_attn = "auto";
+            await invoke("save_server_preset", { name, config: cfg });
+          }
+        } catch {
+          // A single broken preset should not abort the rest of the
+          // migration. Skip and continue.
+        }
+      }
+      sessionStorage.setItem(MIGRATION_FLAG, "1");
+      await refreshPresets();
+    } catch {
+      // list_server_presets itself failed — nothing to do.
+    }
+  };
+
   const savePreset = async (name: string) => {
     if (!name.trim()) return;
     try {
@@ -423,6 +454,23 @@ export default function Server() {
     try {
       const loaded = await invoke<ServerConfig>("load_server_preset", { name: "__default__" });
       if (loaded.extra_params) loaded.extra_params = migrateExtraParams(loaded.extra_params);
+      // Data migration: a previous version of Catapult saved
+      // flash_attn="on" into __default__. Per the v0.1.5-1 product
+      // decision, the built-in default is now "auto" so llama.cpp can
+      // pick the most appropriate backend at runtime. We re-save
+      // __default__ in place so future sessions see the corrected
+      // value. This only touches the __default__ preset, never
+      // user-saved named presets — we respect explicit user choices.
+      if (loaded.flash_attn && loaded.flash_attn !== "auto") {
+        loaded.flash_attn = "auto";
+        try {
+          await invoke("save_server_preset", { name: "__default__", config: loaded });
+        } catch {
+          // If the write fails the in-memory state is still the
+          // migrated value, so the session is consistent even if
+          // disk persistence broke.
+        }
+      }
       setConfig((prev) => ({
         ...loaded,
         model_path: prev.model_path,
@@ -433,11 +481,24 @@ export default function Server() {
     }
   };
 
-  const resetToDefault = () => {
-    loadDefaults().then(() => {
+  const resetToDefault = async () => {
+    // Hard-reset: seed from the in-memory DEFAULT_CONFIG (which is the
+    // single source of truth for the "built-in defaults") and persist
+    // it as __default__ so future sessions start from here. This also
+    // covers the case where a previous version of Catapult saved
+    // flash_attn="on" into __default__ — we wipe that without
+    // touching the user's other named presets.
+    try {
+      const seeded: ServerConfig = {
+        ...DEFAULT_CONFIG,
+        model_path: config.model_path,
+        mmproj_path: config.mmproj_path,
+      };
+      await invoke("save_server_preset", { name: "__default__", config: seeded });
+      setConfig(seeded);
       setActivePreset(null);
       setShowPresetMenu(false);
-    });
+    } catch (e) { setError(String(e)); }
   };
 
   // ── Data loading ──────────────────────────────────────────────────────────
@@ -487,6 +548,7 @@ export default function Server() {
     refreshPresets();
     // Only load defaults if no session-restored config
     if (!loadSessionConfig()) loadDefaults();
+    migrateFlashAttn();
     // Load any existing logs (e.g. server started from Dashboard)
     invoke<string[]>("get_server_logs").then((existing) => {
       if (existing.length > 0) {
