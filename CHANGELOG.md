@@ -28,6 +28,15 @@
 
 - **【运行】面板：服务器日志新增"一键复制"按钮**：「服务器日志」头部右侧新增复制按钮（`ClipboardCopy` 图标），紧邻折叠箭头。点击后用 `navigator.clipboard.writeText` 把 `logs` 数组用换行符拼接写入剪贴板（剪贴板 API 不可用时回退到隐藏 `textarea` + `document.execCommand("copy")`），1.5s 内图标切换为 `CircleCheck` 并变 primary 色作"已复制"瞬态反馈。`logs.length === 0` 时按钮自动 disabled。**v0.1.5-1 修复**：将外层包裹的 `<button>` 拆为「标题区按钮 + 操作区 div + 操作区折叠按钮」三件套（HTML 规范禁止 `<button>` 嵌套 `<button>`，浏览器解析时会自动提走内层按钮，导致 `e.stopPropagation()` 失效、外层折叠 `onClick` 仍触发——表现为"点复制会折叠面板"）。`aria-label` 同步拆为 `collapsePanel` / `expandPanel`（中英双语）。
 
+- **【运行】面板：修复 `--fit` 必传参被吞掉的启动失败**：Catapult 在「运行」面板的「Server」标签里 `Fit` 是下拉框（`on` / `off`），UI 选中 `on` 时 `extra_params["fit"]` 值为空串。后端 `build_args` 之前对所有空值都走"只 push 旗标、不 push 值"的分支，导致拼出的命令行形如 `… --fit --kv-unified …`，`llama-server` 解析时把 `--kv-unified` 当成 `--fit` 的参数值、报 `unknown value for --fit: '--kv-unified'` 并退出 1。修复方式：后端加白名单 `OPTIONAL_ON_OFF_FLAGS`（当前含 `fit` / `no-warmup` / `warmup`），命中时强制 emit `"on"`（空值时）或原值（非空时），其它 flag 行为保持不变（空值 drop，避免污染命令行）。新增 3 个回归测试（`build_args_fit_on_emits_value_kv_unified_stays_dangling` / `build_args_fit_off_passes_value` / `build_args_non_on_off_flag_empty_value_dropped`）。
+
+- **【运行】面板：启动前 KV 缓存预算提示（`estimate_kv_usage`）**：从 GGUF 头部读 `embedding_length` / `block_count` / `attention.head_count_kv` / `attention.key_length` 四个 arch 字段，结合用户在 UI 配的 `n_ctx` 和 `cache_type_k`（f16/q8_0/q4_0 等），按 `2 × head_dim × head_count_kv × block_count × bpe × ctx × 1.08` 公式估算 KV 占用，叠加上模型文件大小（GB）得到总 VRAM 占用，与当前 `GpuInfo.vram_mb` 总和比对：
+  - `usage_pct < 0.80`：无提示
+  - `0.80 ≤ usage_pct < 1.00`：黄色 toast「Tight fit: …」
+  - `usage_pct ≥ 1.00`：黄色 toast「Predicted to OOM at startup: …」（不阻止启动，仅提示）
+  - 检测不到 VRAM（核显 / WSL1）时给「lower bound」友好文案
+  Toast 显示在「启动」按钮上方，含三个数字（权重 / KV / VRAM）和「关闭」按钮。新增 Tauri command `estimate_kv_usage` + `kv_estimate` Rust 模块（2 个单测）+ `KvEstimate` TS 类型。i18n 新增 `kvWarningTitle` / `kvWarningHint` 中英双语。**典型场景**：5080 16G + 32G RAM + gemma-4-12b-it-UD-Q4_K_XL（6.86 GB）+ ctx=65536 + KV=q8_0 时，估算 KV 占用约 13 GB，会触发「Predicted to OOM」提示，建议降到 ctx=16384。
+
 ## [0.1.5] - 2026-05-28
 
 ### 中文版本特性

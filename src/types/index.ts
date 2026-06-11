@@ -13,6 +13,21 @@ export interface SystemInfo {
   recommended_backend: string;
 }
 
+// ── Server pre-flight (KV-cache budget) ──────────────────────────────────────
+
+/** Result of `estimate_kv_usage` — see `kv_estimate.rs`. */
+export interface KvEstimate {
+  kv_total_mb: number;
+  model_weights_mb: number;
+  available_vram_mb: number;
+  /** MB remaining after weights + KV. Negative ⇒ predicted OOM. */
+  headroom_mb: number;
+  /** 0..1 ratio of (weights + kv) / usable_vram. */
+  usage_pct: number;
+  /** null when the budget looks safe; otherwise a human-readable warning. */
+  warning: string | null;
+}
+
 export interface GpuInfo {
   name: string;
   vram_mb: number;

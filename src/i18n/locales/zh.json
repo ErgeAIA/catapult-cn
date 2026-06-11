@@ -273,6 +273,8 @@
     "launch": "启动",
     "pleaseSelectModel": "请选择一个模型。",
     "noModels": "尚未安装模型。",
+    "kvWarningTitle": "KV 缓存预算提示",
+    "kvWarningHint": "模型权重：{{w}} MB · KV 缓存：{{kv}} MB · 显存：{{v}} MB",
     "downloadOneFirst": "先下载一个。",
     "model": "模型",
     "vision": "视觉",

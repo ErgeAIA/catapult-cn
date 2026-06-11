@@ -17,8 +17,9 @@ import {
   Eye,
   ClipboardCopy,
   CircleCheck,
+  AlertTriangle,
 } from "lucide-react";
-import type { ModelInfo, ServerConfig, ServerStatus } from "../types";
+import type { KvEstimate, ModelInfo, ServerConfig, ServerStatus } from "../types";
 
 // ── Utility components ──────────────────────────────────────────────────────
 
@@ -260,6 +261,7 @@ export default function Server() {
   });
   const [showLogs, setShowLogs] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [kvWarning, setKvWarning] = useState<KvEstimate | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [showModelList, setShowModelList] = useState(false);
@@ -541,6 +543,24 @@ export default function Server() {
 
   const startServer = async () => {
     if (!config.model_path) { setError(t("server.pleaseSelectModel")); return; }
+    // Pre-flight KV-cache budget check. If the predicted usage is
+    // concerning, surface a yellow toast; never block the user.
+    try {
+      const kv = await invoke<KvEstimate>("estimate_kv_usage", {
+        modelPath: config.model_path,
+        nCtx: config.n_ctx,
+        kvQuant: config.cache_type_k,
+      });
+      if (kv.warning) {
+        setKvWarning(kv);
+      } else {
+        setKvWarning(null);
+      }
+    } catch {
+      // Best-effort only — if the model file is missing or the
+      // GGUF header is unreadable, do not block startup.
+      setKvWarning(null);
+    }
     setError(null); setLogs([]); setShowLogs(true);
     try {
       await invoke("start_server", { config });
@@ -561,6 +581,34 @@ export default function Server() {
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
+      {/* KV-cache budget warning (pre-flight, before logs). */}
+      {kvWarning && kvWarning.warning && (
+        <div className="mx-6 mt-4 p-3 rounded border border-accent-yellow/40 bg-accent-yellow/10 flex items-start gap-3">
+          <AlertTriangle size={18} className="text-accent-yellow shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-accent-yellow">
+              {t("server.kvWarningTitle", { defaultValue: "Predicted KV-cache budget" })}
+            </div>
+            <p className="text-xs text-gray-200 mt-1 break-words">{kvWarning.warning}</p>
+            <p className="text-[11px] text-gray-400 mt-1">
+              {t("server.kvWarningHint", {
+                defaultValue: "Weights: {{w}} MB · KV cache: {{kv}} MB · VRAM: {{v}} MB",
+                w: kvWarning.model_weights_mb,
+                kv: kvWarning.kv_total_mb,
+                v: kvWarning.available_vram_mb,
+              })}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-ghost shrink-0"
+            onClick={() => setKvWarning(null)}
+            aria-label={t("server.errorDismiss", { defaultValue: "Dismiss" })}
+          >
+            <Square size={12} />
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="px-6 pt-6 pb-4 border-b border-border flex items-start justify-between">
         <div>

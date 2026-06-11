@@ -613,7 +613,15 @@ pub fn build_args(config: &ServerConfig) -> Vec<String> {
     args.push("--parallel".to_string());
     args.push(config.parallel.to_string());
 
-    // Extra parameters from the UI - with validation
+    // Extra parameters from the UI - with validation. A handful of
+    // llama.cpp flags take an `on`/`off` argument and the UI represents
+    // `on` as an empty value (toggle-style "fit the model, ok?"). For
+    // those we always emit "on" as the value; otherwise pass through.
+    const OPTIONAL_ON_OFF_FLAGS: &[&str] = &[
+        "fit",        // --fit [on|off] (default: on)
+        "no-warmup",  // --no-warmup
+        "warmup",     // --warmup
+    ];
     let mut sorted_params: Vec<_> = config
         .extra_params
         .iter()
@@ -622,7 +630,12 @@ pub fn build_args(config: &ServerConfig) -> Vec<String> {
     sorted_params.sort_by_key(|(k, _)| (*k).clone());
     for (key, value) in sorted_params {
         args.push(format!("--{}", key));
-        if !value.is_empty() {
+        if OPTIONAL_ON_OFF_FLAGS.contains(&key.as_str()) {
+            // Empty value from UI = "use the on" form, which llama.cpp
+            // accepts as an explicit on/off argument.
+            let v = if value.is_empty() { "on".to_string() } else { sanitize_param_value(value) };
+            args.push(v);
+        } else if !value.is_empty() {
             args.push(sanitize_param_value(value));
         }
     }
@@ -811,6 +824,78 @@ mod tests {
         };
         let args = build_args(&config);
         assert!(!args.contains(&"--threads".to_string()));
+    }
+
+    /// Regression: when the UI represents `--fit` "on" as an empty string
+    /// (toggle-style), build_args used to emit a bare `--fit` which
+    /// llama-server then accepted `--kv-unified` as its value. Now the
+    /// empty value gets expanded to "on" so llama-server can actually
+    /// parse the next flag.
+    ///
+    /// `kv-unified` is a different shape: it is a plain toggle flag,
+    /// not an "on/off" flag, so the UI sends it as an empty value
+    /// meaning "present, with no value" — build_args must keep it
+    /// dangling at the end of the arg list, not collapse it to nothing.
+    #[test]
+    fn build_args_fit_on_emits_value_kv_unified_stays_dangling() {
+        let config = ServerConfig {
+            model_path: "/path/to/model.gguf".to_string(),
+            extra_params: HashMap::from([
+                ("fit".to_string(), "".to_string()),
+                ("kv-unified".to_string(), "".to_string()),
+            ]),
+            ..Default::default()
+        };
+        let args = build_args(&config);
+        // `extra_params` is sorted alphabetically before emission, so
+        // `fit` and `kv-unified` always land at the tail of the arg
+        // list (well after --model / --host / --port / etc.). Use
+        // rposition to make the assertion robust to future field
+        // additions.
+        let i = args.iter().rposition(|a| a == "--fit").expect("emit --fit");
+        assert_eq!(args[i + 1], "on", "fit=on must pass through an explicit value");
+        // kv-unified is the very last flag; the next token (if any) is
+        // not part of kv-unified's value.
+        let j = args.iter().rposition(|a| a == "--kv-unified").expect("emit --kv-unified");
+        assert!(j + 1 == args.len() || args[j + 1].starts_with("--"),
+            "kv-unified should be a trailing toggle (no value), but got {:?}",
+            args.get(j + 1));
+    }
+
+    /// Regression: when the UI picks "off" the value is "off" verbatim.
+    #[test]
+    fn build_args_fit_off_passes_value() {
+        let config = ServerConfig {
+            model_path: "/path/to/model.gguf".to_string(),
+            extra_params: HashMap::from([("fit".to_string(), "off".to_string())]),
+            ..Default::default()
+        };
+        let args = build_args(&config);
+        let i = args.iter().rposition(|a| a == "--fit").expect("emit --fit");
+        assert_eq!(args[i + 1], "off");
+    }
+
+    /// Regression: a non-optional-on-off flag with empty value is dropped
+    /// (so we do not pollute the command line with `--foo ` followed by
+    /// nothing). This was the previous behaviour and must be preserved
+    /// for everything outside the on/off list.
+    #[test]
+    fn build_args_non_on_off_flag_empty_value_dropped() {
+        let config = ServerConfig {
+            model_path: "/path/to/model.gguf".to_string(),
+            extra_params: HashMap::from([("split-mode".to_string(), "".to_string())]),
+            ..Default::default()
+        };
+        let args = build_args(&config);
+        let i = args.iter().rposition(|a| a == "--split-mode").expect("emit --split-mode");
+        // Either split-mode is the very last arg, or what follows is
+        // another --flag (in which case the empty value is correctly
+        // absent). What we must NOT see is a bare empty value token.
+        match args.get(i + 1) {
+            None => {} // trailing — fine
+            Some(next) => assert!(next.starts_with("--"),
+                "split-mode should be dangling, but got a value token: {:?}", next),
+        }
     }
 
     // ── kill_server_sync ─────────────────────────────────────────────────────

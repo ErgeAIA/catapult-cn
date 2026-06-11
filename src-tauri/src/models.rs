@@ -35,6 +35,15 @@ struct GgufMeta {
     size_label: Option<String>,
     context_length: Option<u64>,
     tags: Vec<String>,
+    /// Embedding / hidden size (`<arch>.embedding_length`).
+    embedding_length: Option<u64>,
+    /// Decoder block count (`<arch>.block_count`).
+    block_count: Option<u64>,
+    /// GQA group count (`<arch>.attention.head_count_kv`). When absent
+    /// (older checkpoints) the model is MHA and head_count_kv == head_count.
+    head_count_kv: Option<u64>,
+    /// Per-head key length (`<arch>.attention.key_length`).
+    key_length: Option<u64>,
 }
 
 fn read_gguf_metadata(path: &Path) -> Option<GgufMeta> {
@@ -91,6 +100,14 @@ fn read_gguf_metadata(path: &Path) -> Option<GgufMeta> {
                 let val = u32::from_le_bytes(buf4);
                 if key.ends_with(".context_length") {
                     meta.context_length = Some(val as u64);
+                } else if key.ends_with(".embedding_length") {
+                    meta.embedding_length = Some(val as u64);
+                } else if key.ends_with(".block_count") {
+                    meta.block_count = Some(val as u64);
+                } else if key.ends_with(".attention.head_count_kv") {
+                    meta.head_count_kv = Some(val as u64);
+                } else if key.ends_with(".attention.key_length") {
+                    meta.key_length = Some(val as u64);
                 }
             }
             10 | 11 => {
@@ -99,6 +116,14 @@ fn read_gguf_metadata(path: &Path) -> Option<GgufMeta> {
                 let val = u64::from_le_bytes(buf8);
                 if key.ends_with(".context_length") {
                     meta.context_length = Some(val);
+                } else if key.ends_with(".embedding_length") {
+                    meta.embedding_length = Some(val);
+                } else if key.ends_with(".block_count") {
+                    meta.block_count = Some(val);
+                } else if key.ends_with(".attention.head_count_kv") {
+                    meta.head_count_kv = Some(val);
+                } else if key.ends_with(".attention.key_length") {
+                    meta.key_length = Some(val);
                 }
             }
             0 | 1 => { let mut b = [0u8; 1]; f.read_exact(&mut b).ok()?; }
@@ -136,6 +161,30 @@ fn read_gguf_metadata(path: &Path) -> Option<GgufMeta> {
     }
 
     Some(meta)
+}
+
+/// Public wrapper used by `kv_estimate`. The internal `read_gguf_metadata`
+/// is fine to call, but exposing the whole `GgufMeta` would leak
+/// internal-only fields. The KV estimator only needs the architecture
+/// metadata for its computation, so we hand it a frozen view.
+pub fn read_gguf_metadata_for_estimate(path: &Path) -> Option<GgufMetaView> {
+    read_gguf_metadata(path).map(|m| GgufMetaView {
+        embedding_length: m.embedding_length,
+        block_count: m.block_count,
+        head_count_kv: m.head_count_kv,
+        key_length: m.key_length,
+    })
+}
+
+/// Frozen view of the GGUF header fields needed to estimate KV-cache
+/// memory. Independent of the rest of the public `ModelInfo` surface
+/// so it can change without breaking serialised Tauri commands.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GgufMetaView {
+    pub embedding_length: Option<u64>,
+    pub block_count: Option<u64>,
+    pub head_count_kv: Option<u64>,
+    pub key_length: Option<u64>,
 }
 
 fn read_gguf_string(f: &mut std::fs::File) -> Option<String> {

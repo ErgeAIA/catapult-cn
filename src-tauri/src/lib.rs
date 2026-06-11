@@ -1,6 +1,7 @@
 pub mod config;
 pub mod hardware;
 pub mod huggingface;
+pub mod kv_estimate;
 pub mod models;
 pub mod modelscope;
 pub mod release_cache;
@@ -35,6 +36,29 @@ pub struct AppState {
 #[tauri::command]
 async fn get_system_info(_state: State<'_, AppState>) -> Result<SystemInfo, String> {
     hardware::get_system_info().map_err(|e| e.to_string())
+}
+
+/// Pre-flight KV-cache memory budget check used by the Server page
+/// to warn the user before spawning `llama-server`. The model file is
+/// re-parsed from disk (cheap — we only read the GGUF header) so the
+/// caller does not need to know the GGUF layout.
+#[tauri::command]
+async fn estimate_kv_usage(
+    model_path: String,
+    n_ctx: u32,
+    kv_quant: String,
+) -> Result<kv_estimate::KvEstimate, String> {
+    let path = std::path::PathBuf::from(&model_path);
+    if !path.exists() {
+        return Err(format!("Model not found: {}", model_path));
+    }
+    let system = hardware::get_system_info().map_err(|e| e.to_string())?;
+    Ok(kv_estimate::estimate_for_config(
+        &path,
+        n_ctx,
+        &kv_quant,
+        &system,
+    ))
 }
 
 #[tauri::command]
@@ -1073,6 +1097,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Hardware
             get_system_info,
+            estimate_kv_usage,
             suggest_model_config,
             // Runtime
             get_runtime_info,

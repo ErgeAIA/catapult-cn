@@ -274,6 +274,8 @@
     "launch": "Launch",
     "pleaseSelectModel": "Please select a model.",
     "noModels": "No models installed.",
+    "kvWarningTitle": "Predicted KV-cache budget",
+    "kvWarningHint": "Weights: {{w}} MB · KV cache: {{kv}} MB · VRAM: {{v}} MB",
     "downloadOneFirst": "Download one first.",
     "model": "Model",
     "vision": "Vision",
