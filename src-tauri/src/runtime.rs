@@ -431,6 +431,12 @@ pub async fn download_runtime(
     let response = client
         .get(&asset.download_url)
         .header("User-Agent", "catapult-launcher/0.1")
+        // Per-request override: release assets are 100s of MB and
+        // Chinese / corporate links can be slow. 5 minutes is enough
+        // for a full download without locking the UI on a stalled
+        // connection (which the user can still cancel via the
+        // download_progress event stream).
+        .timeout(std::time::Duration::from_secs(300))
         .send()
         .await
         .context("Failed to start download")?;

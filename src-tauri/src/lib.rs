@@ -17,6 +17,7 @@ use server::{ServerConfig, ServerStatus, SharedServerState};
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindowBuilder, WebviewUrl};
 
 // ── App State ────────────────────────────────────────────────────────────────
@@ -1025,8 +1026,35 @@ pub fn run() {
         config.wizard_completed = false;
         let _ = config.save();
     }
-    let http_client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
+    let mut builder = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120));
+
+    // Wire up HTTP proxy support. reqwest 0.12.28 has no
+    // `Proxy::from_env`, so we read the conventional env vars
+    // ourselves. Combined with the `system-proxy` cargo feature,
+    // this covers:
+    //   - Windows: WinHTTP system proxy (Clash / V2RayN "Allow LAN")
+    //   - macOS:   system configuration (Surge / ClashX)
+    //   - Linux / CI / dev: explicit HTTPS_PROXY / HTTP_PROXY
+    // First non-empty variable wins, in priority order.
+    let proxy_var = [
+        "ALL_PROXY", "all_proxy",
+        "HTTPS_PROXY", "https_proxy",
+        "HTTP_PROXY", "http_proxy",
+    ]
+    .into_iter()
+    .find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()));
+    if let Some(url) = proxy_var {
+        match reqwest::Proxy::all(&url) {
+            Ok(p) => {
+                log::info!("Using proxy from env: {url}");
+                builder = builder.proxy(p);
+            }
+            Err(e) => log::warn!("Ignoring invalid proxy URL {url:?}: {e}"),
+        }
+    }
+
+    let http_client = builder
         .build()
         .expect("Failed to build HTTP client");
 
