@@ -105,6 +105,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Publish Release
+        shell: pwsh
+        run: |
+          gh release edit ${{ github.ref_name }} --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   sync-to-gitee:
     needs: check
     if: github.event_name != 'pull_request'
@@ -118,127 +125,3 @@ jobs:
         run: |
           git remote add gitee https://ergeaia:${{ secrets.GITEE_ACCESS_TOKEN }}@gitee.com/ergeaia/catapult-cn.git
           git push gitee ${{ github.ref }} --force
-
-  sync-release-to-gitee:
-    needs: [build, sync-to-gitee]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get Release Info
-        id: release
-        run: |
-          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          gh release view ${{ github.ref_name }} --json body,isPrerelease --jq '{body: .body, prerelease: .prerelease}' > release.json
-          cat release.json
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish Release
-        run: |
-          gh release edit ${{ github.ref_name }} --draft=false
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download Release Assets
-        run: |
-          mkdir -p assets
-          gh release download ${{ github.ref_name }} --dir ./assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify Gitee Token
-        run: |
-          TOKEN="${{ secrets.GITEE_ACCESS_TOKEN }}"
-          if [ -z "$TOKEN" ]; then
-            echo "::error::GITEE_ACCESS_TOKEN secret is empty"
-            exit 1
-          fi
-          echo "Token length: ${#TOKEN}"
-          RESPONSE=$(curl -s "https://gitee.com/api/v5/user?access_token=$TOKEN")
-          echo "Token verification: $RESPONSE"
-          echo "$RESPONSE" | jq -e '.login' > /dev/null
-          if [ $? -ne 0 ]; then
-            echo "::error::Gitee token verification failed. Token needs at least 'projects' (user_info) permission."
-            echo "Please regenerate token at: https://gitee.com/profile/personal_access_tokens"
-            exit 1
-          fi
-
-      - name: Create Gitee Release
-        id: gitee_release
-        run: |
-          TAG="${{ github.ref_name }}"
-          TOKEN="${{ secrets.GITEE_ACCESS_TOKEN }}"
-
-          jq -r '.body // empty' release.json > body.txt
-          if [ ! -s body.txt ]; then
-            printf 'Release %s' "$TAG" > body.txt
-          fi
-          PRERELEASE_VAL=$(jq -r '.prerelease // "false"' release.json)
-          # Convert to proper JSON boolean for argjson
-          if [ "$PRERELEASE_VAL" = "true" ]; then
-            PRERELEASE_JSON="true"
-          else
-            PRERELEASE_JSON="false"
-          fi
-
-          # Build payload with access_token in body (Gitee required format)
-          jq -n \
-            --arg tag "$TAG" \
-            --arg name "Catapult-CN $TAG" \
-            --rawfile body body.txt \
-            --argjson prerelease "$PRERELEASE_JSON" \
-            --arg token "$TOKEN" \
-            '{access_token: $token, tag_name: $tag, name: $name, body: ($body | rtrimstr("\n")), prerelease: $prerelease, target_commitish: "master"}' > payload.json
-
-          echo "Payload (token masked):"
-          jq 'del(.access_token)' payload.json
-
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-            "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases" \
-            -H 'Content-Type: application/json' \
-            -d @payload.json)
-
-          # Parse response body and HTTP status
-          RELEASE_BODY=$(echo "$RESPONSE" | sed '/^HTTP_STATUS:/d')
-          echo "Response: $RELEASE_BODY"
-          RELEASE_ID=$(echo "$RELEASE_BODY" | jq -r '.id // empty')
-          if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
-            echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-          else
-            echo "::warning::Gitee release creation returned no id, checking if release already exists..."
-            EXISTING=$(curl -s "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/tags/$TAG?access_token=$TOKEN")
-            echo "Existing release check: $EXISTING"
-            EXISTING_ID=$(echo "$EXISTING" | jq -r '.id // empty')
-            if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
-              echo "release_id=$EXISTING_ID" >> $GITHUB_OUTPUT
-            else
-              echo "::error::Gitee release creation failed. Full response: $RESPONSE"
-              exit 1
-            fi
-          fi
-
-      - name: Upload Assets to Gitee
-        run: |
-          RELEASE_ID=${{ steps.gitee_release.outputs.release_id }}
-          if [ -z "$RELEASE_ID" ]; then
-            echo "::error::No Gitee release ID available"
-            exit 1
-          fi
-          TOKEN="${{ secrets.GITEE_ACCESS_TOKEN }}"
-          echo "Uploading assets to Gitee release $RELEASE_ID"
-          ls -la assets/
-          for file in assets/*; do
-            if [ -f "$file" ]; then
-              FILENAME=$(basename "$file")
-              echo "Uploading: $FILENAME"
-              RESPONSE=$(curl -s -X POST \
-                "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attach_files" \
-                -F "access_token=$TOKEN" \
-                -F "file=@$file;filename=$FILENAME")
-              echo "$RESPONSE"
-            fi
-          done
