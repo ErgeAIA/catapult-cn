@@ -118,9 +118,6 @@ jobs:
         run: |
           git remote add gitee https://ergeaia:${{ secrets.GITEE_ACCESS_TOKEN }}@gitee.com/ergeaia/catapult-cn.git
           git push gitee ${{ github.ref }} --force
-          if [[ '${{ github.ref }}' == refs/tags/* ]]; then
-            git push gitee ${{ github.ref_name }} --force
-          fi
 
   sync-release-to-gitee:
     needs: [build, sync-to-gitee]
@@ -131,20 +128,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug releases
-        run: |
-          echo "Looking for release with tag: ${{ github.ref_name }}"
-          gh release list --limit 10
-          gh release view ${{ github.ref_name }} --json body,isPrerelease 2>&1 || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Get Release Info
         id: release
         run: |
           echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           gh release view ${{ github.ref_name }} --json body,isPrerelease --jq '{body: .body, prerelease: .prerelease}' > release.json
           cat release.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Release
+        run: |
+          gh release edit ${{ github.ref_name }} --draft=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -159,39 +154,61 @@ jobs:
         id: gitee_release
         run: |
           TAG="${{ github.ref_name }}"
-          BODY=$(cat release.json | jq -r '.body')
-          PRERELEASE=$(cat release.json | jq -r '.prerelease')
+          TOKEN="${{ secrets.GITEE_ACCESS_TOKEN }}"
 
+          # Write body to file to avoid shell variable expansion issues
+          jq -r '.body // empty' release.json > body.txt
+          if [ ! -s body.txt ]; then
+            printf 'Release %s' "$TAG" > body.txt
+          fi
+          PRERELEASE=$(jq -r '.prerelease // "false"' release.json)
+
+          # Build JSON payload using --rawfile to safely read body content
+          jq -n \
+            --arg tag "$TAG" \
+            --arg name "Catapult-CN $TAG" \
+            --rawfile body body.txt \
+            --argjson prerelease "$PRERELEASE" \
+            '{tag_name: $tag, name: $name, body: ($body | rtrimstr("\n")), prerelease: $prerelease, target_commitish: "master"}' > payload.json
+
+          cat payload.json
           RESPONSE=$(curl -s -X POST \
-            'https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases' \
-            -H 'Authorization: token ${{ secrets.GITEE_ACCESS_TOKEN }}' \
+            "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases?access_token=$TOKEN" \
             -H 'Content-Type: application/json' \
-            -d "{
-              \"tag_name\": \"$TAG\",
-              \"name\": \"Catapult-CN $TAG\",
-              \"body\": $(echo "$BODY" | jq -Rs .),
-              \"prerelease\": $PRERELEASE,
-              \"target_commitish\": \"master\"
-            }")
+            -d @payload.json)
 
           echo "Release Response: $RESPONSE"
           RELEASE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
           if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
             echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
           else
-            echo "::error::Failed to create Gitee release: $RESPONSE"
-            exit 1
+            echo "::warning::Gitee release creation returned no id, checking if release already exists..."
+            EXISTING=$(curl -s "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/tags/$TAG?access_token=$TOKEN")
+            echo "Existing release check: $EXISTING"
+            EXISTING_ID=$(echo "$EXISTING" | jq -r '.id // empty')
+            if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
+              echo "release_id=$EXISTING_ID" >> $GITHUB_OUTPUT
+            else
+              echo "::error::Gitee release creation failed"
+              exit 1
+            fi
           fi
 
       - name: Upload Assets to Gitee
         run: |
           RELEASE_ID=${{ steps.gitee_release.outputs.release_id }}
+          if [ -z "$RELEASE_ID" ]; then
+            echo "::error::No Gitee release ID available"
+            exit 1
+          fi
+          ls -la assets/
           for file in assets/*; do
-            FILENAME=$(basename "$file")
-            echo "Uploading: $FILENAME"
-            RESPONSE=$(curl -s -X POST \
-              "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attach_files" \
-              -H 'Authorization: token ${{ secrets.GITEE_ACCESS_TOKEN }}' \
-              -F "file=@$file;filename=$FILENAME")
-            echo "$RESPONSE"
+            if [ -f "$file" ]; then
+              FILENAME=$(basename "$file")
+              echo "Uploading: $FILENAME"
+              RESPONSE=$(curl -s -X POST \
+                "https://gitee.com/api/v5/repos/ergeaia/catapult-cn/releases/$RELEASE_ID/attach_files?access_token=${{ secrets.GITEE_ACCESS_TOKEN }}" \
+                -F "file=@$file;filename=$FILENAME")
+              echo "$RESPONSE"
+            fi
           done
