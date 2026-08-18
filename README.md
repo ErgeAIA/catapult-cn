@@ -245,12 +245,6 @@ npx tsc --noEmit
 - **测试：** Vitest（前端）、`#[cfg(test)]` 模块（后端）
 - **CI：** GitHub Actions — 每次 push/PR 运行测试，main/tags 分支触发跨平台构建
 
-## 许可证
-
-基于 [Apache License, Version 2.0](LICENSE) 许可证。
-
-原始项目 [pwilkin/catapult](https://github.com/pwilkin/catapult) 版权所有 2026 Piotr Wilkin。
-
 ## 作者信息
 
 **宝藏二哥AIA / ErgeAIA** — 独立开发者，理念：三无分享（无门槛、无套路、无保留）。
@@ -258,3 +252,11 @@ npx tsc --noEmit
 - 视频：[B 站](https://space.bilibili.com/67221461) · [知乎](https://www.zhihu.com/people/meli55a/posts)
 - 代码：[GitHub](https://github.com/ErgeAIA) · [Gitee](https://gitee.com/ErgeAIA)
 - 邮箱：ergeaia@agent.qq.com
+
+## 许可证
+
+基于 [Apache License, Version 2.0](LICENSE) 许可证。
+
+原始项目 [pwilkin/catapult](https://github.com/pwilkin/catapult) 版权所有 2026 Piotr Wilkin。
+
+
