@@ -1,5 +1,7 @@
 # Catapult-CN
 
+![Downloads](https://img.shields.io/github/downloads/ErgeAIA/catapult-cn/total?style=for-the-badge&logo=github&logoColor=white)
+
 [llama.cpp](https://github.com/ggml-org/llama.cpp) 的桌面启动器。管理运行时版本、发现和下载模型、配置服务器（覆盖所有参数）、提供嵌入式聊天界面——全程无需触碰命令行。
 
 本项目是基于 [pwilkin/catapult](https://github.com/pwilkin/catapult) 的中文汉化分支，增加了 ModelScope 支持、内置推荐配置预设等特性。暂只支持 Windows 平台，TUI 界面未汉化。
