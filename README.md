@@ -250,3 +250,11 @@ npx tsc --noEmit
 基于 [Apache License, Version 2.0](LICENSE) 许可证。
 
 原始项目 [pwilkin/catapult](https://github.com/pwilkin/catapult) 版权所有 2026 Piotr Wilkin。
+
+## 作者信息
+
+**宝藏二哥AIA / ErgeAIA** — 独立开发者，理念：三无分享（无门槛、无套路、无保留）。
+
+- 视频：[B 站](https://space.bilibili.com/67221461) · [知乎](https://www.zhihu.com/people/meli55a/posts)
+- 代码：[GitHub](https://github.com/ErgeAIA) · [Gitee](https://gitee.com/ErgeAIA)
+- 邮箱：ergeaia@agent.qq.com
