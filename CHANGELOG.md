@@ -6,6 +6,18 @@
 
 原项目更新日志见：[English](CHANGELOG.en.md)
 
+## [Unreleased]
+
+### 新增
+
+- **新增《llamacpp 参数及性能调优》文档**：以 llama-server manpage 的四组分组方式，重组《Catapult 完整参数配置指南》中的参数说明，并附性能调优要点。含档位预设速查表、常用页/高级页参数清单（131 项，英文字段逐字节取自官方文档，供 UI 运行时传递）与 CLI 专用参数清单（64 项，不进 UI），另附参数设置原则总结。
+- **新增 `docs/reference/` 目录**：存档 llama-server 手册页（manpage）与 llama.cpp 官方性能调优指南的英文原文，作为参数校对的权威依据。
+
+### 变更
+
+- **《Catapult 完整参数配置指南》全面对齐 llama.cpp 官方文档**：逐条校正参数含义、取值范围与默认值（如超时 3600s、优先级五级、Flash Attention 默认 `auto`、GPU 层数默认 `auto` 等），补齐新增参数（`--load-mode`、`--reasoning-effort`、`--kv-unified-per-slot`、`--video-*`、`--spec-synth-*` 等），补充按显存分级（6GB–48GB+）的推荐配置速查表，并在文档头标注更新日期。
+- **移除无官方文档支持的界面参数**：删除语音合成两项（`--model-vocoder`、`--tts-use-guide-tokens`）与过时的"详细提示"字段（`--no-display-prompt`）。约定：所有进入界面的参数必须以官方 manpage 与 `llama-server --help` 为准，无官方依据的参数不做 UI。
+
 ## [0.1.5-1] - 2026-06-11
 
 ### 中文版本特性

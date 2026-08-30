@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **New document *llamacpp Parameters & Performance Tuning***: reorganizes the parameter descriptions from the *Catapult Configuration Guide* following the llama-server manpage four-group layout, plus performance-tuning notes. Includes the tier-preset quick-reference table, the common/advanced page parameter list (131 items; English CLI fields taken verbatim from the official docs for runtime argv passing) and a CLI-only parameter list (64 items, excluded from UI), along with a parameter principles summary.
+- **New `docs/reference/` directory**: archives the English originals of the llama-server manpage and the official llama.cpp performance-tuning guide as the authoritative reference for parameter alignment.
+
+### Changed
+
+- ***Catapult Configuration Guide* fully aligned with the official llama.cpp docs**: corrected parameter semantics, allowed ranges and defaults line by line (timeout 3600s, five-level priority, Flash Attention default `auto`, GPU layers default `auto`, etc.), added newly introduced parameters (`--load-mode`, `--reasoning-effort`, `--kv-unified-per-slot`, `--video-*`, `--spec-synth-*`, etc.), added a VRAM-tiered (6GB–48GB+) recommended configuration table, and stamped the update date on the header.
+- **Removed UI parameters not backed by official docs**: dropped the two TTS items (`--model-vocoder`, `--tts-use-guide-tokens`) and the outdated "detailed prompt" field (`--no-display-prompt`). Convention: every UI-exposed parameter must exist in the official manpage / `llama-server --help`; parameters without official grounding get no UI.
+
 ## [0.1.5-1] - 2026-06-11
 
 ### Fixed
