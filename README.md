@@ -3,6 +3,8 @@
 > [!WARNING]
 > **本项目已停止维护，不再更新。** 推荐使用继任项目 **AI Vault**——功能更完整的本地 AI 资产管理与 llama.cpp 启动器，官网：<https://ergeaia.github.io/aivault-site/>
 
+![AI Vault — Llama.cpp 引擎](images/aivault-engine.png)
+
 ![Downloads](https://img.shields.io/github/downloads/ErgeAIA/catapult-cn/total?style=for-the-badge&logo=github&logoColor=white)
 
 [llama.cpp](https://github.com/ggml-org/llama.cpp) 的桌面启动器。管理运行时版本、发现和下载模型、配置服务器（覆盖所有参数）、提供嵌入式聊天界面——全程无需触碰命令行。

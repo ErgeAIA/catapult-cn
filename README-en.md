@@ -3,6 +3,8 @@
 > [!WARNING]
 > **This project is no longer maintained.** Check out its successor, **AI Vault** — a more complete local AI asset manager & llama.cpp launcher: <https://ergeaia.github.io/aivault-site/>
 
+![AI Vault — Llama.cpp Engine](images/aivault-engine.png)
+
 A desktop launcher for [llama.cpp](https://github.com/ggml-org/llama.cpp). Manages runtime versions, discovers and downloads models, configures the server with full parameter coverage, and provides an embedded chat interface — all without touching the command line.
 
 Available in two interfaces:
